@@ -174,21 +174,46 @@ func build(src, out string) (int, error) {
 	// robots.txt names the sitemap and the markdown mirrors. Agents are the
 	// heavier readership here, and llms.txt is not discoverable on its own.
 	//
-	// Googlebot and Bingbot are kept off the mirrors, and NOTHING else is. The
-	// mirrors are the same content at a second address: rel="alternate" is not
-	// a documented deduplication signal, each page links its mirror three
-	// times, and on GitHub Pages a .md file can carry neither a canonical tag
-	// nor an X-Robots-Tag header. So a search index would be offered every page
-	// twice. The same rule under `User-agent: *` would shut out every AI agent
-	// as well, which is the readership the mirrors exist for.
+	// ⚠️ THE MIRRORS ARE NOW HANDLED BY X-Robots-Tag, NOT BY Disallow
+	// (20 Sep 2026), and the two are not interchangeable.
+	//
+	// What was here before kept Googlebot and Bingbot off the mirrors with
+	// `Disallow: /*.md$`, reasoning that "on GitHub Pages a .md file can carry
+	// neither a canonical tag nor an X-Robots-Tag header". That was true of
+	// GitHub Pages and stopped being true when this site moved to Cloudflare
+	// Pages as docs.heliograph.io - the same move that made the _redirects
+	// file below work at all. Cloudflare Pages honours a _headers file, so a
+	// .md response can carry X-Robots-Tag after all.
+	//
+	// It mattered because Disallow is not noindex. Disallow stops a crawler
+	// FETCHING a URL; it does not stop the URL being indexed, and it
+	// guarantees the crawler never sees any instruction the response carries.
+	// Each page links its mirror three times, so Google knew every mirror
+	// existed, could not fetch one to learn what it was, and reported the
+	// whole site under "Duplicate, Google chose different canonical than user"
+	// and "Alternative page with proper canonical tag" on 20 Sep 2026.
+	//
+	// So the mirrors are now CRAWLABLE and marked noindex in _headers below.
+	// Google fetches one, is told plainly not to index it, and stops treating
+	// it as a rival for the HTML page's place. Do not reinstate the Disallow
+	// alongside the header: it would hide the header and put this back.
 	robots := "User-agent: *\nAllow: /\n\n" +
-		"# The markdown mirrors are for agents, not for search indexes: the same\n" +
-		"# page at a second address, with no way to carry a canonical tag here.\n" +
-		"User-agent: Googlebot\nDisallow: /*.md$\n\n" +
-		"User-agent: Bingbot\nDisallow: /*.md$\n\n" +
+		"# The markdown mirrors are for agents, not for search indexes. They are\n" +
+		"# crawlable on purpose and carry X-Robots-Tag: noindex - a Disallow here\n" +
+		"# would stop a crawler ever seeing that header, which is how the mirrors\n" +
+		"# came to be reported as duplicates.\n" +
 		"Sitemap: " + baseURL + "/sitemap.xml\n" +
 		"\n# Markdown mirrors of every page at <path>.md, and " + baseURL + "/llms.txt\n"
 	if err := os.WriteFile(filepath.Join(out, "robots.txt"), []byte(robots), 0o644); err != nil {
+		return 0, err
+	}
+	// Cloudflare Pages honours this file; GitHub Pages never did, which is why
+	// the mirrors used to be handled with a robots.txt Disallow instead. The
+	// markdown mirrors are the same content as the HTML page at a second
+	// address, so they are marked noindex rather than hidden from the crawler:
+	// a crawler that cannot fetch the file cannot read this header either.
+	headers := "/*.md\n  X-Robots-Tag: noindex\n"
+	if err := os.WriteFile(filepath.Join(out, "_headers"), []byte(headers), 0o644); err != nil {
 		return 0, err
 	}
 	if err := os.WriteFile(filepath.Join(out, "_redirects"), []byte(redirectsFile()), 0o644); err != nil {

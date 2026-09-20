@@ -642,55 +642,40 @@ func TestTheFooterNamesTheHumanWhoWroteIt(t *testing.T) {
 	}
 }
 
-// The mirrors are for agents. Google and Bing are offered the HTML only, so
-// the same page is not served to an index twice: rel="alternate" is not a
-// documented deduplication signal, the mirrors are linked three times per
-// page, and on GitHub Pages they can carry neither a canonical tag nor an
-// X-Robots-Tag. The scoping is per-crawler on purpose. Under `User-agent: *`
-// it would shut out every AI agent as well, which is the readership the
-// mirrors exist for.
-func TestRobotsKeepsTheMirrorsFromSearchCrawlersOnly(t *testing.T) {
+// The mirrors are for agents, and they are kept out of a search index with
+// X-Robots-Tag rather than with a robots.txt Disallow. The two are not
+// interchangeable and swapping them back would undo this.
+//
+// Disallow stops a crawler FETCHING a URL. It does not stop the URL being
+// indexed, and it guarantees the crawler never sees any instruction the
+// response carries. Each page links its mirror three times, so Google knew
+// every mirror existed, could not fetch one to learn what it was, and reported
+// the site under "Duplicate, Google chose different canonical than user" on
+// 20 Sep 2026. The old rule was written for GitHub Pages, where a .md file
+// could carry no header at all; on Cloudflare Pages it can.
+func TestMirrorsAreNoindexedRatherThanHidden(t *testing.T) {
 	out := buildSite(t)
+
+	h, err := os.ReadFile(filepath.Join(out, "_headers"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(h), "/*.md") || !strings.Contains(string(h), "X-Robots-Tag: noindex") {
+		t.Errorf("_headers does not noindex the markdown mirrors:\n%s", h)
+	}
+
 	b, err := os.ReadFile(filepath.Join(out, "robots.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	groups := map[string][]string{}
-	agent := ""
 	for _, line := range strings.Split(string(b), "\n") {
 		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
+		if strings.HasPrefix(line, "#") {
 			continue
 		}
-		k, v, ok := strings.Cut(line, ":")
-		if !ok {
-			continue
-		}
-		k, v = strings.TrimSpace(k), strings.TrimSpace(v)
-		if strings.EqualFold(k, "user-agent") {
-			agent = v
-			if _, ok := groups[agent]; !ok {
-				groups[agent] = nil
-			}
-			continue
-		}
-		if agent != "" {
-			groups[agent] = append(groups[agent], k+": "+v)
-		}
-	}
-	for _, crawler := range []string{"Googlebot", "Bingbot"} {
-		rules, ok := groups[crawler]
-		if !ok {
-			t.Errorf("robots.txt has no group for %s", crawler)
-			continue
-		}
-		if !containsRule(rules, "Disallow: /*.md$") {
-			t.Errorf("%s is not kept off the markdown mirrors: %v", crawler, rules)
-		}
-	}
-	for _, rule := range groups["*"] {
-		if strings.HasPrefix(rule, "Disallow:") && rule != "Disallow:" {
-			t.Errorf("`User-agent: *` carries %q, which shuts out every agent, not just search", rule)
+		if strings.HasPrefix(line, "Disallow:") && strings.Contains(line, ".md") {
+			t.Errorf("robots.txt blocks the mirrors with %q - that hides the "+
+				"X-Robots-Tag header from the crawler that needs to read it", line)
 		}
 	}
 	if !strings.Contains(string(b), "Sitemap: "+baseURL+"/sitemap.xml") {
