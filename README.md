@@ -175,16 +175,30 @@ timestamp is reported as an **error**, not as "no gaps".
 | `--gaps` | works |
 | MCP server (`heliograph mcp`) | works |
 | bash station | in use over git: the loop, the gates, the capture, Azure hosts, Kubernetes, the Windows launcher |
-| relay | **half a transport.** The station side is written and complete - it fetches requests, publishes status and delivers the finished log - and the [relay server](https://github.com/heliograph-io/heliograph-relay) is deployed. No CLI command can select it |
-| file share, bundle, object store | **control side only.** The CLI implements all three; the station has no transport for any of them |
+| relay | works end to end. `heliograph init --transport relay` selects it, both stations implement it, the [relay server](https://github.com/heliograph-io/heliograph-relay) is deployed, and `TestCLIDrivesARelayStation` drives the whole loop in CI |
+| file share, bundle, object store | station transports exist for all three in the bash station (`station/bash/transports/`); `init` selects share, bundle and objstore. The PowerShell station carries share but not bundle or objstore |
 | Azure Blob | works end to end, through `drop.sh` in the station payload rather than the CLI. It is what the Azure Function host uses |
-| PowerShell station | planned: [A8](docs/specs/2026-09-08-powershell-station-and-full-documentation-design.md) |
+| PowerShell station | ships. `station/powershell/` is ~2,600 lines carrying git, share and relay, and CI runs it on a Windows runner. Design: [A8](docs/specs/2026-09-08-powershell-station-and-full-documentation-design.md) |
 | documentation site | [docs.heliograph.io](https://docs.heliograph.io): the CLI, the transports, and the far side - the station, the runner, steps, hosts, Azure, Windows, containers, services, secrets, security and the capture contract |
 
 A transport that works on one side of the gap is not a transport, so this
-table names both sides. Git is the one the CLI drives end to end; what the
-others still need, and in what order, is
+table names both sides. Git and relay are driven end to end by the CLI and
+proved in CI; what the others still need, and in what order, is
 [the roadmap](docs/plans/2026-09-08-powershell-and-docs-roadmap.md).
+
+> **This table was wrong for some time, and the reason is worth keeping.** Until
+> 21 Sep 2026 it said relay was "half a transport" that "no CLI command can
+> select", that the station had no transport for share, bundle or object store,
+> and that the PowerShell station was "planned". All four were false against the
+> code in this repository. The documentation site did not drift, because
+> `transports_doc_test.go` binds it to `initTransports` and to the station
+> transport directories - and nothing bound this file. It is bound now, by
+> `TestReadmeTransportClaimsMatchTheCode`.
+>
+> The cost was not confined here: `skills.dbhq.uk/heliograph` deliberately
+> published the *more conservative* claim because this README contradicted the
+> documentation site, and recorded that it would stay understated "until
+> heliograph settles which is true". This is that settlement.
 
 ## The relay
 
