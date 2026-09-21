@@ -172,3 +172,69 @@ func TestTheTransportsPageStatesBothSides(t *testing.T) {
 		}
 	}
 }
+
+// The README's capability table drifted for some time, and nothing noticed,
+// because the tests above bind the DOCUMENTATION SITE to the code and nothing
+// bound the README.
+//
+// Until 21 Sep 2026 it said relay was "half a transport" that "no CLI command
+// can select", that the station had no transport for share, bundle or object
+// store, and that the PowerShell station was "planned". All four were false
+// against this repository: --transport relay is in initTransports,
+// station/bash/transports/ carries six transports, and station/powershell/ is
+// ~2,600 lines that CI runs on a Windows runner.
+//
+// It cost more than tidiness. skills.dbhq.uk/heliograph deliberately published
+// the MORE CONSERVATIVE claim because this README contradicted the docs site,
+// and said in a source comment that it would stay understated "until
+// heliograph settles which is true". A README nobody tested was understating
+// the product on a third-party page.
+//
+// So this asserts the specific false claims cannot come back, rather than
+// trying to parse the table: the negative form is what rots, and it is cheap
+// to pin.
+func TestReadmeTransportClaimsMatchTheCode(t *testing.T) {
+	b, err := os.ReadFile("../../README.md")
+	if err != nil {
+		t.Skipf("no README here: %v", err)
+	}
+	readme := string(b)
+
+	// Each of these was published and each was false.
+	for _, claim := range []string{
+		"No CLI command can select it",
+		"the station has no transport for any of them",
+		"PowerShell station | planned",
+	} {
+		if strings.Contains(readme, claim) {
+			t.Errorf("README repeats a claim the code contradicts: %q", claim)
+		}
+	}
+
+	// And the positive side, so the table cannot simply go silent instead.
+	if !strings.Contains(readme, "--transport relay") {
+		t.Error("README no longer shows that init can select the relay transport")
+	}
+
+	// Every station transport that exists on disk should be reachable from
+	// `init`, which is the invariant the table is describing.
+	entries, err := filepath.Glob("../../station/bash/transports/*.sh")
+	if err != nil || len(entries) == 0 {
+		t.Skipf("the bash station payload is not here: %v", err)
+	}
+	known := map[string]bool{}
+	for _, k := range initTransports {
+		known[k] = true
+	}
+	for _, e := range entries {
+		name := strings.TrimSuffix(filepath.Base(e), ".sh")
+		// blob is reached through drop.sh in the payload rather than by init,
+		// which the table says explicitly.
+		if name == "blob" {
+			continue
+		}
+		if !known[name] {
+			t.Errorf("station/bash/transports/%s.sh exists but init cannot select %q", name, name)
+		}
+	}
+}
