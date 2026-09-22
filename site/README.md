@@ -28,12 +28,21 @@ fetch them and it costs half a day, not because they will win citations.
 
 ## Analytics, and what a search result sees
 
-The site reports into the **dbhq.uk GA4 property**, on the same web stream
-(`G-3H3NFGSX85`), because Google's guidance is one stream per site including
-its subdomains. Separate the docs in reports by the Hostname dimension. The tag
-loads only after the consent banner is accepted and only on
-`heliograph.dbhq.uk`, which is the promise the dbhq.uk privacy policy makes.
-Without JavaScript there is no banner and no tag.
+**This site measures nothing.** The GA4 tag, the Consent Mode gate and the
+consent banner were removed when it moved to `docs.heliograph.io` on
+2026-09-16, and the reasoning is in `cmd/heliograph-site/main.go` beside the
+code that used to emit them.
+
+All three were correct while the site was `heliograph.dbhq.uk`: the measurement
+id was the dbhq.uk stream's, on Google's one-stream-per-site-including-subdomains
+guidance, and the banner linked the dbhq.uk privacy policy, which actually
+covered the hostname the reader was on. `heliograph.io` is a different
+registrable domain, so all three stopped being true in the same instant - what
+would have been live is one domain's tag disclosed by another domain's policy.
+
+Removed rather than repointed: a measurement id nobody has created cannot be
+written here, and a banner cannot link a policy that does not exist. The cost is
+accepted and real - the documentation has no usage signal at all.
 
 Titles and descriptions are hand-written in `cmd/heliograph-site/main.go`
 (`titles`, `descriptions`), and a test holds every description to 70 to 160
