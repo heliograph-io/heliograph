@@ -13,4 +13,4 @@ This package downloads the released Go binary for your platform and verifies it
 against the checksums published beside it. If the checksum does not match, the
 file is deleted and the install fails.
 
-Full documentation: <https://heliograph.dbhq.uk>
+Full documentation: <https://docs.heliograph.io>
