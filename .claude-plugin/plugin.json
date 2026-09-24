@@ -1,7 +1,6 @@
 {
   "name": "heliograph",
   "description": "Debug and change a machine you cannot log into, through an operator who cannot debug it - for air-gapped, client-owned and change-controlled estates where nobody will be giving you SSH. The skill drives the heliograph CLI: plant a station into a private transport repo, publish a step, and the whole run comes back as a log with a UTC timestamp on every line, ANSI stripped and obvious secrets masked, whether it passed or failed. The far side needs bash, git and coreutils - no packages, no credentials, no tunnel. Requires the heliograph binary; the skill prints the install command when it is missing.",
-  "version": "2.0.0",
   "author": {
     "name": "DBHQ",
     "email": "dan@dbhq.uk"
