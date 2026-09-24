@@ -21,6 +21,13 @@ jobs:
           # had been given full history.
           fetch-depth: 0
 
+      # No `version` in plugin.json, on purpose (24 Sep 2026). Claude Code only
+      # updates an installed plugin when this field changes, it was never bumped,
+      # and marketplace installs sat on old code for weeks. With no version the
+      # commit is the version, so every merge to main reaches users.
+      - name: plugin.json carries no version
+        run: jq -e 'has("version") | not' .claude-plugin/plugin.json > /dev/null
+
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: '1.27.1'
