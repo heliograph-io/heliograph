@@ -60,8 +60,9 @@ func TestInitializeAnswersWithProtocolVersion(t *testing.T) {
 	if !ok {
 		t.Fatalf("no result: %v", got[0])
 	}
-	if res["protocolVersion"] != protocolVersion {
-		t.Errorf("protocolVersion = %v, want %s", res["protocolVersion"], protocolVersion)
+	// No version asked for, so the newest.
+	if res["protocolVersion"] != protocolVersions[0] {
+		t.Errorf("protocolVersion = %v, want %s", res["protocolVersion"], protocolVersions[0])
 	}
 	caps, _ := res["capabilities"].(map[string]any)
 	if _, ok := caps["tools"]; !ok {
@@ -302,5 +303,89 @@ func TestArgumentHelpers(t *testing.T) {
 	}
 	if len(StrMap(args, "missing")) != 0 {
 		t.Error("StrMap of a missing key should be empty, not nil-panicking")
+	}
+}
+
+// The version the client asks for, when this server knows it, and its newest
+// otherwise. It answered 2024-11-05 to everybody, which has no tool
+// annotations, so no client could tell a read from a write.
+func TestInitializeNegotiatesTheProtocolVersion(t *testing.T) {
+	for asked, want := range map[string]string{
+		"2025-06-18": "2025-06-18",
+		"2025-03-26": "2025-03-26",
+		"2024-11-05": "2024-11-05",
+		"2099-01-01": "2025-06-18",
+	} {
+		got := exchange(t, []Tool{echoTool()},
+			`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"`+asked+`"}}`)
+		res := got[0]["result"].(map[string]any)
+		if res["protocolVersion"] != want {
+			t.Errorf("asked %s, answered %v, want %s", asked, res["protocolVersion"], want)
+		}
+	}
+}
+
+// A read-only tool says so, and every other tool says it may change things, so
+// a client can let a model read without asking and still gate a write.
+func TestToolsListCarriesAnnotations(t *testing.T) {
+	ro := echoTool()
+	ro.Name = "reader"
+	ro.ReadOnly = true
+	got := exchange(t, []Tool{echoTool(), ro},
+		`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`)
+	for _, x := range got[0]["result"].(map[string]any)["tools"].([]any) {
+		tool := x.(map[string]any)
+		ann, ok := tool["annotations"].(map[string]any)
+		if !ok {
+			t.Fatalf("%v carries no annotations", tool["name"])
+		}
+		switch tool["name"] {
+		case "reader":
+			if ann["readOnlyHint"] != true {
+				t.Errorf("a read-only tool is not marked read-only: %v", ann)
+			}
+		case "echo":
+			if ann["readOnlyHint"] != false || ann["destructiveHint"] != true {
+				t.Errorf("a tool that may change things is not marked so: %v", ann)
+			}
+		}
+	}
+}
+
+// Progress goes to the client that asked for it, with its token, before the
+// result. A client that did not ask gets none: a notification it has no
+// request to match is noise at best.
+func TestProgressIsSentOnlyWhenAskedFor(t *testing.T) {
+	slow := Tool{
+		Name:   "slow",
+		Schema: map[string]any{"type": "object"},
+		CallWithProgress: func(a map[string]any, p Progress) (string, error) {
+			p(1, 3, "first")
+			p(2, 3, "second")
+			return "done", nil
+		},
+	}
+	got := exchange(t, []Tool{slow},
+		`{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"slow","arguments":{},"_meta":{"progressToken":"tok-1"}}}`)
+	if len(got) != 3 {
+		t.Fatalf("want two progress notifications and a result, got %d: %v", len(got), got)
+	}
+	for i, want := range []string{"first", "second"} {
+		if got[i]["method"] != "notifications/progress" || got[i]["id"] != nil {
+			t.Fatalf("frame %d is not a progress notification: %v", i, got[i])
+		}
+		p := got[i]["params"].(map[string]any)
+		if p["progressToken"] != "tok-1" || p["message"] != want || p["progress"] != float64(i+1) || p["total"] != float64(3) {
+			t.Errorf("frame %d carries the wrong progress: %v", i, p)
+		}
+	}
+	if got[2]["result"] == nil {
+		t.Errorf("the result did not come last: %v", got[2])
+	}
+
+	quiet := exchange(t, []Tool{slow},
+		`{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"slow","arguments":{}}}`)
+	if len(quiet) != 1 || quiet[0]["result"] == nil {
+		t.Errorf("progress went to a client that did not ask for it: %v", quiet)
 	}
 }

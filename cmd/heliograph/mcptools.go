@@ -61,7 +61,8 @@ func tools() []mcp.Tool {
 	estateArg := str("Which estate. Optional when only one is configured.")
 
 	return []mcp.Tool{{
-		Name: "heliograph_estates",
+		Name:     "heliograph_estates",
+		ReadOnly: true,
 		Description: "List the configured estates and the transport each uses. " +
 			"Call this first when you do not know which estate to act on.",
 		Schema: obj(map[string]any{}),
@@ -87,8 +88,8 @@ func tools() []mcp.Tool {
 	}, {
 		Name: "heliograph_send",
 		Description: "Publish a step for the station to run, and return immediately. " +
-			"This does NOT wait for the result: poll heliograph_status with the id this returns " +
-			"until it reports a terminal state, then read the log. The station decides whether to run it at " +
+			"This does NOT wait for the result: pass the id this returns to heliograph_wait, or poll " +
+			"heliograph_status with it, until it reports a terminal state, then read the log. The station decides whether to run it at " +
 			"all: a step that declares no mode is refused, and one that changes state needs " +
 			"CONFIRM=yes and a station started with --allow-actions.",
 		Schema: obj(map[string]any{
@@ -162,12 +163,13 @@ func tools() []mcp.Tool {
 				valid += "\n" + replacedLine(replacing)
 			}
 			return fmt.Sprintf("sent %s\nstep: %s\nenv: %s\n%s\n\nThe station picks this up within its poll interval. "+
-				"Poll heliograph_status with id %s until state is idle, cancelled, refused, stopped or undelivered. "+
+				"Call heliograph_wait with id %s, or poll heliograph_status with it, until state is idle, cancelled, refused, stopped or undelivered. "+
 				"Without the id, the status straight after a send still describes the previous run.",
 				req.ID, step, req.Env, valid, req.ID), nil
 		},
 	}, {
-		Name: "heliograph_status",
+		Name:     "heliograph_status",
+		ReadOnly: true,
 		Description: "What the station is doing now. State is one of starting, running, idle, " +
 			"cancelled, refused, stopped or undelivered. Five of those are terminal: idle, " +
 			"cancelled, refused, stopped and undelivered. `starting` and `running` mean the run " +
@@ -213,27 +215,24 @@ func tools() []mcp.Tool {
 				}
 				return msg + " That status is about an earlier request, not this one. Poll again.", nil
 			}
-			var b strings.Builder
-			fmt.Fprintf(&b, "state: %s\n", s.State)
-			// ALWAYS, including when the station published nothing for it. A
-			// field omitted when it is unknown is the one a model fills in from
-			// the log history sitting in front of it, and that inference is
-			// wrong in both directions.
-			// The CLI pads its labels into a column; this side is key/value for
-			// a model, so the padding comes back out and the sentence stays.
-			fmt.Fprintf(&b, "%s\n", strings.Replace(actionModeLine(s), "actions:  ", "actions: ", 1))
-			for _, kv := range [][2]string{{"id", s.ID}, {"step", s.Step}, {"host", s.Host},
-				{"started", s.Started}, {"progress", s.Progress}, {"last", s.Last},
-				{"finished", s.Finished}, {"exit", s.Exit}, {"log", s.Log}, {"reason", s.Reason}} {
-				if kv[1] != "" {
-					fmt.Fprintf(&b, "%s: %s\n", kv[0], kv[1])
-				}
-			}
-			if s.Refused() {
-				b.WriteString("\nThe station refused this. An action step needs the station started " +
-					"with --allow-actions and the request to carry CONFIRM=yes.\n")
-			}
-			return b.String(), nil
+			return statusReport(s), nil
+		},
+	}, {
+		Name:     "heliograph_wait",
+		ReadOnly: true,
+		Description: "Wait for one request to finish, for at most max_seconds, and return its status. " +
+			"Pass the id heliograph_send returned. It returns as soon as the run ends, is refused or is " +
+			"cancelled, and says so if the station has moved past the request. At the limit it returns " +
+			"the state so far and the run carries on: call it again with the same id. Keep max_seconds " +
+			"under your own tool-call timeout. It sends progress while it waits, if you ask for it.",
+		Schema: obj(map[string]any{
+			"id": str("The id heliograph_send returned."),
+			"max_seconds": map[string]any{"type": "number",
+				"description": fmt.Sprintf("How long to wait before returning. Default %d, at most %d.", waitDefault, waitMax)},
+			"estate": estateArg,
+		}, "id"),
+		CallWithProgress: func(a map[string]any, progress mcp.Progress) (string, error) {
+			return waitForRequest(a, progress)
 		},
 	}, {
 		Name: "heliograph_cancel",
@@ -268,7 +267,8 @@ func tools() []mcp.Tool {
 			return stopStation(o)
 		},
 	}, {
-		Name: "heliograph_logs",
+		Name:     "heliograph_logs",
+		ReadOnly: true,
 		Description: "List the captured logs, newest first. Each name carries the request id " +
 			"that produced it, so the log for a run you sent is the one whose name matches " +
 			"the id heliograph_send returned. Use this to find a log; use heliograph_read_log " +
@@ -289,7 +289,8 @@ func tools() []mcp.Tool {
 			return strings.Join(names, "\n"), nil
 		},
 	}, {
-		Name: "heliograph_read_log",
+		Name:     "heliograph_read_log",
+		ReadOnly: true,
 		Description: "Read a captured log whole. Every line carries a UTC timestamp. " +
 			"Read all of it, including the parts that worked: a passing probe beside a failing " +
 			"one is the control that says what the failure means. A green exit means the probes " +
@@ -323,7 +324,8 @@ func tools() []mcp.Tool {
 			return string(b), nil
 		},
 	}, {
-		Name: "heliograph_gaps",
+		Name:     "heliograph_gaps",
+		ReadOnly: true,
 		Description: "Where a run stalled. Returns the intervals in the log's timestamp column, " +
 			"longest first, each attributed to the line BEFORE it, which is what was running. " +
 			"Do this before reading a long log: a hang and slow progress are indistinguishable " +
@@ -377,7 +379,8 @@ func tools() []mcp.Tool {
 			return b.String(), nil
 		},
 	}, {
-		Name: "heliograph_doctor",
+		Name:     "heliograph_doctor",
+		ReadOnly: true,
 		Description: "Check whether the transport works from here, and change nothing. " +
 			"Run this before a long step: read access is not write access, and finding out " +
 			"afterwards costs a whole round trip through somebody who cannot debug the machine.",
@@ -406,6 +409,115 @@ func tools() []mcp.Tool {
 			return b.String(), nil
 		},
 	}}
+}
+
+// statusReport is what heliograph_status and heliograph_wait return for a
+// status that is about the request asked for.
+func statusReport(s wire.Status) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "state: %s\n", s.State)
+	// ALWAYS, including when the station published nothing for it. A field
+	// omitted when it is unknown is the one a model fills in from the log
+	// history sitting in front of it, and that inference is wrong in both
+	// directions.
+	// The CLI pads its labels into a column; this side is key/value for a
+	// model, so the padding comes back out and the sentence stays.
+	fmt.Fprintf(&b, "%s\n", strings.Replace(actionModeLine(s), "actions:  ", "actions: ", 1))
+	for _, kv := range [][2]string{{"id", s.ID}, {"step", s.Step}, {"host", s.Host},
+		{"started", s.Started}, {"progress", s.Progress}, {"last", s.Last},
+		{"finished", s.Finished}, {"exit", s.Exit}, {"log", s.Log}, {"reason", s.Reason}} {
+		if kv[1] != "" {
+			fmt.Fprintf(&b, "%s: %s\n", kv[0], kv[1])
+		}
+	}
+	if s.Refused() {
+		b.WriteString("\nThe station refused this. An action step needs the station started " +
+			"with --allow-actions and the request to carry CONFIRM=yes.\n")
+	}
+	return b.String()
+}
+
+// heliograph_wait's bounds. A tool call holds the client's request open, and a
+// client gives up on one after a limit this side cannot see. So the wait is
+// bounded, short by default, and says how to carry on.
+const (
+	waitDefault = 60
+	waitMax     = 600
+)
+
+// waitPoll is how often heliograph_wait reads the status. A variable so a test
+// can poll in milliseconds.
+var waitPoll = 5 * time.Second
+
+// waitForRequest is `heliograph watch <id> --timeout`, for an agent. There was no
+// watch tool: SKILL.md told an agent to poll heliograph_status, which is one
+// tool call per poll, and one approval each in a client that asks. This is one
+// call, bounded, and it reports progress while it waits.
+func waitForRequest(a map[string]any, progress mcp.Progress) (string, error) {
+	id := mcp.Str(a, "id")
+	if id == "" {
+		return "", fmt.Errorf("id is required: the id heliograph_send returned")
+	}
+	limit := float64(waitDefault)
+	if v, ok := a["max_seconds"]; ok && v != nil {
+		f, isNum := v.(float64)
+		if !isNum || f <= 0 || f > waitMax {
+			return "", fmt.Errorf("max_seconds is a number of seconds from 1 to %d, not %v", waitMax, v)
+		}
+		limit = f
+	}
+	o, err := open(mcp.Str(a, "estate"))
+	if err != nil {
+		return "", err
+	}
+	start := time.Now()
+	deadline := start.Add(time.Duration(limit * float64(time.Second)))
+	done, line := 0.0, ""
+	for {
+		s, err := o.FetchStatus()
+		switch {
+		case err != nil:
+			// A blip, not a death, as in `watch`.
+			line = "could not read the status, still waiting: " + err.Error()
+		case stationElsewhere(o, s) != "":
+			// Nothing on this scope reads the request, so waiting is waiting
+			// for ever. Said now, not at the limit.
+			return "", fmt.Errorf("%s.\n%s", stationElsewhere(o, s), stationElsewhereRemedy(o, s))
+		default:
+			msg, moved := notPickedUp(s, id)
+			switch {
+			case moved:
+				return strings.ToUpper(msg[:1]) + msg[1:] + ". Waiting longer will not change this: " +
+					"find that request's log with heliograph_logs.", nil
+			case msg != "":
+				line = msg
+			case s.Done():
+				out := statusReport(s)
+				if s.Log != "" {
+					out += "\nRead it with heliograph_gaps first, then heliograph_read_log.\n"
+				}
+				return out, nil
+			default:
+				line = s.State
+				if s.Progress != "" {
+					line += ", " + s.Progress
+				}
+			}
+		}
+		// Seconds waited, which only grows, out of the limit.
+		if e := time.Since(start).Seconds(); e > done {
+			done = e
+		} else {
+			done += 0.001
+		}
+		progress(done, limit, line)
+		left := time.Until(deadline)
+		if left <= 0 {
+			return fmt.Sprintf("Not finished after %gs: %s. The run carries on, and this stopped waiting. "+
+				"Call heliograph_wait again with id %s.", limit, line, id), nil
+		}
+		time.Sleep(min(waitPoll, left))
+	}
 }
 
 // The env quoting lives in wire.QuoteEnv, with the document it belongs to.

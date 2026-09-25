@@ -19,6 +19,9 @@ func call(t *testing.T, name string, args map[string]any) (string, error) {
 	t.Helper()
 	for _, tl := range tools() {
 		if tl.Name == name {
+			if tl.CallWithProgress != nil {
+				return tl.CallWithProgress(args, func(float64, float64, string) {})
+			}
 			return tl.Call(args)
 		}
 	}
@@ -377,8 +380,8 @@ func TestStatusWithAnIDSaysNotPickedUpYet(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := strings.TrimPrefix(strings.SplitN(out, "\n", 2)[0], "sent ")
-	if !strings.Contains(out, "heliograph_status with id "+id) {
-		t.Errorf("the send reply does not say to poll with the id:\n%s", out)
+	if !strings.Contains(out, "heliograph_wait with id "+id) || !strings.Contains(out, "heliograph_status with it") {
+		t.Errorf("the send reply does not say to wait, or poll, with the id:\n%s", out)
 	}
 }
 
