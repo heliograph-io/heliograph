@@ -481,3 +481,29 @@ func TestSendToolRefusesAScopeNoStationReads(t *testing.T) {
 		t.Errorf("the tool refused a scope whose status is its own: %v", err)
 	}
 }
+
+// heliograph_send says when it replaces a request the station has not read,
+// exactly as `heliograph send` does. The station holds one request, not a
+// queue, and an agent that sent two in a row believed both had run.
+func TestSendToolNamesTheUnrunRequestItReplaces(t *testing.T) {
+	share := estateOnDisk(t)
+	scopeDir(t, share)
+
+	first, err := call(t, "heliograph_send", map[string]any{"step": "env"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(first, "replaced") {
+		t.Errorf("the first send claimed to replace something:\n%s", first)
+	}
+	id := strings.TrimPrefix(strings.SplitN(first, "\n", 2)[0], "sent ")
+
+	time.Sleep(1100 * time.Millisecond)
+	second, err := call(t, "heliograph_send", map[string]any{"step": "net"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(second, "replaced unrun request "+id) {
+		t.Errorf("the second send did not name the unrun request it replaced (%s):\n%s", id, second)
+	}
+}

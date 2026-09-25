@@ -153,6 +153,23 @@ request lifted out of a transport repo would be good for ever, and
 the limit off, for an estate that plants its station days after the request is
 written.
 
+### One request, not a queue
+
+The station holds one request, and the newest wins on every transport: git and
+the file share overwrite one file, and a relay station runs the newest message
+it collects. A `send` while a step runs does not cancel that step; the new
+request runs when it ends. But a `send` before the station has read the
+previous request replaces it, and the previous one never runs. `send` says so
+when it happens, naming the request it replaced:
+
+```
+sent 20260925T101500Z-net-probe
+  replaced unrun request 20260925T101458Z-env: the station had not read it, and now it will not run.
+```
+
+It knows only the requests sent from this machine. Send the next once `watch`
+shows the last one picked up.
+
 ### It refuses a branch no station reads
 
 The status a station publishes names the branch it runs on. `send` reads it

@@ -632,3 +632,76 @@ func TestSendRefusesABranchNoStationReads(t *testing.T) {
 		t.Errorf("a new station's doctor reports another station's status as its own:\n%s", d)
 	}
 }
+
+// A send over a request the station has not read says it is replacing it.
+//
+// The station holds one request, and the newest wins. Two sends before it
+// polls, and the first never runs - while SKILL.md said a new send "queues",
+// so an agent that sent two steps in a row believed both had run.
+func TestSendNamesTheUnrunRequestItReplaces(t *testing.T) {
+	station := stationDir(t)
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("no bash")
+	}
+
+	base := t.TempDir()
+	origin := filepath.Join(base, "origin.git")
+	work := filepath.Join(base, "work")
+	cfg := filepath.Join(base, "config")
+
+	sh(t, base, filepath.Join(station, "station", "bootstrap.sh"), work)
+	sh(t, base, "git", "init", "-q", "-b", "main", "--bare", origin)
+	quietOrigin(t, origin)
+	sh(t, work, "git", "init", "-q", "-b", "main")
+	sh(t, work, "git", "remote", "add", "origin", origin)
+	for name, word := range map[string]string{"first.sh": "FIRST-RAN", "second.sh": "SECOND-RAN"} {
+		body := "#!/usr/bin/env bash\n# heliograph-mode: read-only\necho " + word + "\n"
+		if err := os.WriteFile(filepath.Join(work, "steps", name), []byte(body), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	sh(t, work, "git", "add", "-A")
+	sh(t, work, "git", "commit", "-qm", "init")
+	sh(t, work, "git", "push", "-q", "-u", "origin", "main")
+
+	bin := filepath.Join(base, "heliograph")
+	sh(t, ".", "go", "build", "-o", bin, "github.com/heliograph-io/heliograph/cmd/heliograph")
+	hg := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command(bin, args...)
+		cmd.Dir = base
+		cmd.Env = append(append(os.Environ(), "XDG_CONFIG_HOME="+cfg), noBackgroundGit...)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("heliograph %v: %v\n%s", args, err, out)
+		}
+		return string(out)
+	}
+
+	hg("init", "e2e", "--dir", work)
+	firstOut := hg("send", "steps/first.sh")
+	if strings.Contains(firstOut, "replaced") {
+		t.Errorf("the first send claimed to replace something:\n%s", firstOut)
+	}
+	first := strings.TrimPrefix(strings.SplitN(firstOut, "\n", 2)[0], "sent ")
+
+	// Ids carry the time to the second, and two in the same second would be
+	// the same request.
+	time.Sleep(1100 * time.Millisecond)
+	out := hg("send", "steps/second.sh")
+	if !strings.Contains(out, "replaced unrun request "+first) {
+		t.Errorf("the second send did not name the unrun request it replaced (%s):\n%s", first, out)
+	}
+
+	// And it is true: the station runs the second and never the first.
+	sh(t, work, "bash", "./station.sh", "--once", "--interval", "1")
+	if logs := hg("logs"); strings.Contains(logs, "first-") || !strings.Contains(logs, "second-") {
+		t.Errorf("the station did not run exactly the second request:\n%s", logs)
+	}
+
+	// Once the station has read the last request, the next send replaces nothing.
+	time.Sleep(1100 * time.Millisecond)
+	if again := hg("send", "steps/first.sh"); strings.Contains(again, "replaced") {
+		t.Errorf("a send after the station had read the last request claimed to replace it:\n%s", again)
+	}
+}

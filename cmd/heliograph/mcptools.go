@@ -110,9 +110,11 @@ func tools() []mcp.Tool {
 			if err != nil {
 				return "", err
 			}
-			// The same refusal `heliograph send` makes: a request on a branch no
-			// station reads is never picked up, and nothing would say so.
-			if err := refuseIfStationElsewhere(o); err != nil {
+			// The same checks `heliograph send` makes: a request on a branch no
+			// station reads is never picked up, and one sent over an unread
+			// request replaces it. Nothing would say either otherwise.
+			replacing, err := beforeSend(o)
+			if err != nil {
 				return "", err
 			}
 			// Sorted, so the same call twice produces the same request rather
@@ -155,6 +157,9 @@ func tools() []mcp.Tool {
 			valid := "valid until " + req.Expires
 			if req.Expires == "" {
 				valid = "never expires"
+			}
+			if replacing != "" {
+				valid += "\n" + replacedLine(replacing)
 			}
 			return fmt.Sprintf("sent %s\nstep: %s\nenv: %s\n%s\n\nThe station picks this up within its poll interval. "+
 				"Poll heliograph_status with id %s until state is idle, cancelled, refused, stopped or undelivered. "+
