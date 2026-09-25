@@ -217,7 +217,7 @@ assert_eq "base64 -w0 output has no embedded newline" "0" "$out"
 # but this image's job is to not make an operator read either warning, so
 # presence is asserted here regardless of what start.sh would tolerate.
 #
-# ssh is here because references/transport.md's stated preference is SSH
+# ssh is here because the transports page's stated preference is SSH
 # with a forwarded agent key, over an HTTPS token, which it treats as the
 # fallback. An image with no ssh binary at all would make that preferred
 # path impossible rather than merely unconfigured, so presence is a
@@ -1108,7 +1108,7 @@ REPO_URL="file:///srv/repo.git" wrap --print --image "$IMAGE" -- --branch "https
 assert_eq "a credentialed value anywhere in the passthrough is refused, not just the first token" \
   "2" "$RC"
 # NOT REFUSED: an ssh URL's git@ is a username, not a secret, and rejecting it
-# would break the transport references/transport.md actually prefers. This is
+# would break the transport the transports page actually prefers. This is
 # the boundary of the check, asserted so it cannot quietly widen.
 wrap --print --image "$IMAGE" "ssh://git@example.invalid/x.git"
 assert_eq "an ssh URL's git@ username is not mistaken for a credential" "0" "$RC"
@@ -1117,7 +1117,7 @@ assert_contains "and the URL reaches the composed command untouched" \
 
 # --- a registry-qualified --image is pulled, never built - Finding 6 -----------
 # `--image ghcr.io/org/heliograph-toolkit:v9.9.9` used to BUILD the local
-# Dockerfile and tag the result with the published name. references/container.md
+# Dockerfile and tag the result with the published name. The containers page
 # presents pulling and building as the two distinct paths, and the publish
 # workflow's whole argument is that the image at a tag can only be what that
 # tag's commit produced; a consumer-side build tagged with the published name

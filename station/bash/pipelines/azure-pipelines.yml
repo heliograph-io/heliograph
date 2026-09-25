@@ -16,7 +16,7 @@
 #  the pool, so no agent is ever asked for - which reads exactly like every
 #  agent being offline, and sends you to investigate the wrong thing. Queue it
 #  once from the web UI and click Authorize on the banner, or see
-#  references/azure.md for the API calls.
+#  https://docs.heliograph.io/pipelines for the API calls.
 #
 #  No infrastructure. The agent already sits inside the estate with network
 #  reach and git credentials, because that is what a build agent is for.

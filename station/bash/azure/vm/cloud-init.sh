@@ -30,7 +30,7 @@
 #  the token from Key Vault at boot, never putting it in custom data at all
 #  - needs a Key Vault as a further piece of bring-your-own estate
 #  infrastructure this template does not assume exists. Documented as a real
-#  limitation, not fixed here: see references/azure.md.
+#  limitation, not fixed here: see https://docs.heliograph.io/azure.
 #
 #  THE CHECKOUT IS TRANSIENT precisely once: this script clones once, at
 #  first boot. There is no persistent DATA DISK here and none is created -

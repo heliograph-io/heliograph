@@ -24,7 +24,7 @@
 # Every Entra path needs a network call first, and a host with no egress has
 # none: on a VNet-injected Container Instance there is no IMDS at all. And an
 # image minimal enough to be worth deploying may have no `az` and no Python,
-# with nothing installable at runtime. See references/pigeonhole.md.
+# with nothing installable at runtime. See https://docs.heliograph.io/flare.
 # =============================================================================
 
 # No `self`: see the header. No `live` either - a mid-run read costs two blob

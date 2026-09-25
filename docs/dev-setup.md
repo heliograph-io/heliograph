@@ -87,18 +87,18 @@ evidence the loop works is the mistake this section exists to prevent.
 | File | Contents |
 |---|---|
 | `skills/heliograph/SKILL.md` | the loop, the workflow, the hard rules |
-| `skills/heliograph/references/method.md` | how to debug across a gap. The expensive lessons |
-| `skills/heliograph/references/steps.md` | writing a step, and the traps that cost round trips |
-| `skills/heliograph/references/runner.md` | every runner, `cap_*` function and knob |
-| `skills/heliograph/references/transport.md` | how the control node authenticates to the git host |
-| `skills/heliograph/references/remote-repo.md` | changing a repo that is also on the far side |
-| `skills/heliograph/references/container.md` | running the loop in a container, and the honest limits |
+| `skills/heliograph/references/method.md` | how to debug across a gap, and how to change a repo that is also on the far side. The expensive lessons |
+| `skills/heliograph/references/steps.md` | writing a step, the helpers in `lib/`, and the traps that cost round trips |
+| `skills/heliograph/references/secrets.md` | `secret.sh`, for a value that has to reach the far side |
+| `site/content/` | everything that describes the code: every runner, `cap_*` function and knob, the transports and their credentials, hosts, containers, Azure, Windows. Published at docs.heliograph.io, and what the skill links |
 | `station/bootstrap.sh` | plants the station into a transport repo, no CLI needed |
 | `station/bash/` | the payload: runners, `lib/`, `steps/`, `docker/`, `TASK.md` |
 | `station/bash/docker/` | the image, the entrypoint that clones, and the `docker run` wrapper |
 
 A new hard-won lesson goes in `references/method.md` with the failure that taught
-it. A new trap in writing steps goes in `references/steps.md`. Keep the rules
+it. A new trap in writing steps goes in `references/steps.md`. Anything that
+describes the code goes in `site/content/`, not in a new reference:
+`tests/test-doc-coherence.sh` refuses a fourth file in `references/`. Keep the rules
 that outrank everything in `SKILL.md` itself - burying one a level down is how it
 stops being obeyed.
 

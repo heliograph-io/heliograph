@@ -18,7 +18,7 @@
 # command rt_ps CONSTRUCTS, by substituting rt_ssh for a stub that prints its
 # arguments, plus a real round trip of the encoder. The behaviour on the far
 # side was measured by hand against Windows Server 2022 with OpenSSH and
-# PowerShell 5.1, and the numbers are recorded in references/windows.md. Reading
+# PowerShell 5.1, and the numbers are recorded beside rt_ps in lib/remote.sh. Reading
 # a green run here as proof that a remote capture works would be wrong.
 # =============================================================================
 set -uo pipefail

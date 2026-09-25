@@ -197,6 +197,51 @@ for f in "$SKILL_DIR"/references/*.md; do
   esac
 done
 
+# --- three references ship offline, and the rest are the site's ---------------
+# There were thirteen. Ten described the code - the runners, hosts, containers,
+# Azure, Windows, services, transports - and the site kept its own copy of most
+# of them, tested against this tree. Nothing tested the skill's copies, which
+# went stale for a fortnight while the CLI gained trust, expiry and request
+# mode, so an agent that opened one got the older answer. Those ten are links
+# now. The three that stay change how an agent works rather than describe the
+# code, and have no reader on a documentation site.
+#
+# A new file here is refused rather than linked-and-forgotten: something that
+# describes the code belongs on the site, where it is tested and has one copy.
+extra=""
+for f in "$SKILL_DIR"/references/*; do
+  [ -e "$f" ] || continue
+  case "$(basename "$f")" in
+    steps.md|method.md|secrets.md) ;;
+    *) extra="$extra $(basename "$f")" ;;
+  esac
+done
+if [ -z "$extra" ]; then
+  t_ok "references/ holds only steps.md, method.md and secrets.md"
+else
+  t_no "references/ holds only steps.md, method.md and secrets.md"
+  printf '     also found:%s. What describes the code belongs in site/content/,\n' "$extra"
+  printf '     and SKILL.md links https://docs.heliograph.io/<page>.md instead.\n'
+fi
+
+# And every page the skill sends an agent to has to exist. The site is built
+# from site/content/ in this tree, so a link to docs.heliograph.io/<page>.md is
+# checked against site/content/<page>.md here rather than over the network: a
+# renamed page fails this in the same pull request that renamed it.
+site_links="$(grep -ohE 'https://docs\.heliograph\.io/[a-z0-9-]+(\.md)?' "$SKILL" "$SKILL_DIR/README.md" | sort -u)"
+if [ -z "$site_links" ]; then
+  t_no "SKILL.md links docs.heliograph.io for what is not in references/"
+fi
+for url in $site_links; do
+  page="${url#https://docs.heliograph.io/}"; page="${page%.md}"
+  if [ -f "$HERE/../site/content/$page.md" ]; then
+    t_ok "$url is a page the site builds"
+  else
+    t_no "$url is a page the site builds"
+    printf '     there is no site/content/%s.md\n' "$page"
+  fi
+done
+
 # --- the near side is described, but not restated ----------------------------
 # The skill has to say the CLI exists: an agent that does not know will
 # hand-edit a request file when a command would have done it correctly.
@@ -368,6 +413,19 @@ if [ -z "$stray" ]; then
 else
   t_no "SKILL.md does not call the far-side loop an agent"
   printf '     %s\n' "$stray"
+fi
+
+# The references are read in the same context, and this check once read only
+# SKILL.md: four references still called the loop an agent while it passed.
+# "build agent" joins the exclusions, because that is what Azure DevOps calls
+# the machine a pipeline runs on.
+stray_refs="$(grep -n '\bagents\?\b' "$SKILL_DIR"/references/*.md \
+  | grep -viE 'ssh|mcp|\bAI\b|agent key|coding agent|build agent' || true)"
+if [ -z "$stray_refs" ]; then
+  t_ok "references/ does not call the far-side loop an agent"
+else
+  t_no "references/ does not call the far-side loop an agent"
+  printf '%s\n' "$stray_refs" | sed "s|^$SKILL_DIR/|     |"
 fi
 
 # --- the same rule, applied to the toolkit -----------------------------------

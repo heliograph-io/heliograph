@@ -167,7 +167,7 @@ variable "application_insights_connection_string" {
 }
 
 # --- intercom: the HTTP transport ---------------------------------------------
-# Off unless asked for. See references/intercom.md before turning it on: it runs
+# Off unless asked for. See https://docs.heliograph.io/flare before turning it on: it runs
 # the script the caller sends, so the `heliograph-mode:` header becomes a claim
 # the caller makes about its own file rather than a control, and the two
 # settings below are then the only real ones.
@@ -202,7 +202,7 @@ variable "intercom_allowed_ip_addresses" {
 # extension cannot build a QueueServiceClient from __accountName alone, and fails
 # to INDEX rather than to run.
 variable "intercom_queue_mode" {
-  description = "Run steps in a queue invocation instead of inline. Needs egress for SyncTriggers, and __queueServiceUri. See references/intercom.md."
+  description = "Run steps in a queue invocation instead of inline. Needs egress for SyncTriggers, and __queueServiceUri. See https://docs.heliograph.io/flare."
   type        = bool
   default     = false
 }
@@ -364,7 +364,7 @@ resource "azurerm_function_app_flex_consumption" "agent" {
     # that runs shell inside the VNet.
     precondition {
       condition     = !var.intercom_enabled || length(var.intercom_allowed_ip_addresses) > 0
-      error_message = "intercom_enabled requires intercom_allowed_ip_addresses. A function key alone does not guard an endpoint that runs caller-supplied shell inside the VNet. See references/intercom.md."
+      error_message = "intercom_enabled requires intercom_allowed_ip_addresses. A function key alone does not guard an endpoint that runs caller-supplied shell inside the VNet. See https://docs.heliograph.io/flare."
     }
   }
 

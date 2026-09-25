@@ -20,7 +20,7 @@
 #
 #  THE SCRIPT GOES WITH THE REQUEST. There is no git on the far side, so a step
 #  that arrived only by redeployment would turn a thirty-second loop into a
-#  five-minute one. What that costs is stated plainly in references/intercom.md:
+#  five-minute one. What that costs is stated plainly at https://docs.heliograph.io/flare:
 #  the mode header stops being a control, because the caller writes it, and the
 #  function key plus the IP allowlist become the only real ones.
 #
@@ -65,7 +65,7 @@ api() {   # api <method> <path> [body-file]
 }
 
 # Reads {"status":...} out of a response body. Kept in one place so the field
-# names appear once: the contract is in references/intercom.md and this is the
+# names appear once: the contract is at https://docs.heliograph.io/flare and this is the
 # only thing that has to agree with it.
 field() {   # field <name> <<< json
   # `is None` rather than `or ""`, because the truthiness shortcut turned an

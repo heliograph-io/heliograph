@@ -178,7 +178,7 @@ resource "azurerm_linux_web_app" "this" {
       # here as well double-prefixes what azurerm builds - linuxFxVersion
       # came out as "DOCKER|ghcr.io/ghcr.io/dbhq-uk/...", a registry ghcr.io
       # does not have, and the app never started. Found by deploying this
-      # exact shape - see references/azure.md. For a public registry the
+      # exact shape - see https://docs.heliograph.io/azure. For a public registry the
       # image name alone is enough.
       docker_image_name = var.image
     }
@@ -189,7 +189,7 @@ resource "azurerm_linux_web_app" "this" {
     # ENTRYPOINT outright. An empty startArgs leaves this empty and the
     # image's own ENTRYPOINT runs with no arguments - see main.bicep's
     # matching comment, confirmed by hand and recorded in
-    # references/azure.md.
+    # https://docs.heliograph.io/azure.
     app_command_line = join(" ", var.startArgs)
   }
 

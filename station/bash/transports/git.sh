@@ -534,9 +534,9 @@ _git_credential() {
           if [ "$pw_masked" != "$url" ]; then
             desc="$desc. The remote URL carries its own credential, so git will use that instead of a header. Several hosts reject the token-in-URL form outright, so if the read check below fails, set GIT_TOKEN or re-point origin at ssh:// rather than suspecting the token"
           elif [ "$masked" != "$url" ]; then
-            desc="$desc. The remote URL carries a bare userinfo and no password. If that is a token, git will authenticate with it; if it is a plain username, there is nothing there to authenticate with and this remote has no credential at all. Set GIT_TOKEN, or re-point origin at ssh:// and use an agent key, which references/transport.md recommends"
+            desc="$desc. The remote URL carries a bare userinfo and no password. If that is a token, git will authenticate with it; if it is a plain username, there is nothing there to authenticate with and this remote has no credential at all. Set GIT_TOKEN, or re-point origin at ssh:// and use an agent key, which https://docs.heliograph.io/transports#the-credential recommends"
           else
-            desc="$desc. An https remote needs one of those. Set GIT_TOKEN, or re-point origin at ssh:// and use an agent key, which references/transport.md recommends"
+            desc="$desc. An https remote needs one of those. Set GIT_TOKEN, or re-point origin at ssh:// and use an agent key, which https://docs.heliograph.io/transports#the-credential recommends"
           fi ;;
         *"no header is sent"*)
           st=warn ;;

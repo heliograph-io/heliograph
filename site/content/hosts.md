@@ -7,42 +7,51 @@ proven.
 
 ## The host contract
 
-A station needs five things and nothing else:
+A station needs seven things and nothing else:
 
 1. a process that can run bash
-2. reach to one transport, **outbound only**
-3. a restart policy
+2. reach to one transport, **outbound only**. Nothing needs to reach *in*,
+   and no host here opens a listener
+3. a way to see it died: a restart policy, or a person who will notice
 4. a non-root account
-5. somewhere to write a file it then hands off
+5. a writable checkout, or somewhere else to write a log it then hands off
+6. **a credential that survives the session.** A forwarded ssh agent key dies
+   at logout, which is exactly when an unattended loop needs it
+7. **an unbuffered stdout.** The capture stamps each line when it is produced.
+   A host that buffers gives every line the same timestamp, which reads like a
+   working log while destroying the only property that makes it worth having
 
 No VNet, no storage account, no inbound port, no persistent disk. **Git or the
 relay is the persistence**: if the compute dies, you run the step again. The
 checkout is transient everywhere.
 
-Anything meeting those five is a viable host, whether or not it appears below.
+Anything meeting those seven is a viable host, whether or not it appears below.
 
 ## Every host, and what it runs
 
-The distinction between proven and written is kept deliberately. Shipping
-twenty untested templates would spend the credibility of the ones that work.
+**Proven** means it has run the loop end to end, and something re-checks that.
+**Validated** means the file is well-formed and checked in CI, but has never
+started a station. **Written** means the file exists and nothing here has run
+or checked it. The distinction is kept deliberately: shipping twenty untested
+templates would spend the credibility of the ones that work, and the next host
+added should be labelled honestly rather than inherit the row above it.
 
-| host | what starts the loop | status |
-|---|---|---|
-| operator's terminal | `./start.sh` | **proven** - 145 assertions, every CI run |
-| Docker | `entrypoint.sh`, then `exec ./start.sh` | **proven** - CI builds the image and runs a loop in it |
-| Kubernetes | the same image, one replica | **proven** - CI applies the manifest to a real cluster |
-| systemd `--user` + lingering | `service.sh install` | **proven** - CI installs a unit and finds a running loop |
-| launchd | `service.sh install` | **proven** - CI loads a real LaunchAgent on macOS |
-| setsid + nohup | `service.sh install`, where neither exists | **proven** |
-| Windows scheduled task | `service.ps1 install`, then `station.ps1` | **proven** - CI registers and reads back the task |
-| GitHub Actions | `./start.sh -- --once` | written |
-| Azure Pipelines | `./start.sh -- --once` | written |
-| Azure Container Instances | the image | **deployed live**, then torn down |
-| Azure Web App for Containers | the image | **deployed live**, then torn down |
-| Azure Container Apps Job | the image, on a schedule | **deployed live**, then torn down |
-| Azure VM | `cloud-init.sh`, then a systemd unit | **deployed live** on `Standard_D2s_v3` in westeurope |
-| Azure Function App | `pigeonhole.sh`, on a timer | written and validated, **never deployed** |
-| ECS Fargate, Cloud Run, anything else | your own, against the contract above | recipes, not templates |
+| host | what starts the loop | status | evidence |
+|---|---|---|---|
+| operator's terminal | `./start.sh` | **proven** | `tests/test-start.sh`, every CI run |
+| Docker (`station/bash/docker/`) | `entrypoint.sh`, then `exec ./start.sh` | **proven** | `tests/test-container.sh` builds the image and runs the loop in it, every CI run |
+| Kubernetes (`station/bash/kubernetes/`) | the same image, one replica | **proven** | `tests/test-kubernetes.sh` applies the shipped manifest to a kind cluster and drives a run through it, every CI run |
+| systemd `--user` + lingering (`service.sh`) | `service.sh install` | **proven** | `tests/test-service.sh` installs a unit and finds a running loop, every CI run |
+| launchd (`service.sh`) | `service.sh install` | **proven** | `tests/test-launchd.sh` loads a real LaunchAgent on a macOS runner and proves `stop: yes` sticks, every CI run |
+| setsid + nohup (`service.sh`) | `service.sh install`, where neither exists | **proven** | `tests/test-service.sh`, on a machine with no systemd user manager |
+| Windows scheduled task (`service.ps1`) | `service.ps1 install`, then `station.ps1` | **proven** | the Windows runner registers the task, reads `ExecutionTimeLimit` back off it, and removes it, every CI run |
+| Azure Container Instances (`station/bash/azure/aci/`) | the image | **proven** | deployed live, then torn down |
+| Azure Web App for Containers (`station/bash/azure/webapp/`) | the image | **proven** | deployed live, then torn down |
+| Azure Container Apps Job (`station/bash/azure/containerappsjob/`) | the image, on a schedule | **proven** | deployed live, then torn down |
+| Azure VM (`station/bash/azure/vm/`) | `cloud-init.sh`, then a systemd unit | **proven** | deployed live on `Standard_D2s_v3` in westeurope, ran a step, and the log came back |
+| Azure Function App (`station/bash/azure/function/`) | `pigeonhole.sh`, on a timer | **validated** | `terraform validate` and `bicep build` in CI. Never deployed |
+| GitHub Actions, Azure Pipelines (`station/bash/pipelines/`) | `./start.sh -- --once` | written | - |
+| ECS Fargate, Cloud Run, anything else | your own, against the contract above | recipes, not templates | - |
 
 ## Which transport works on which host
 

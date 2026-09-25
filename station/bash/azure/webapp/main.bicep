@@ -5,7 +5,7 @@
 //  else: the VNet, subnet and App Service Plan already exist in the estate.
 //  The plan is a fourth bring-your-own beyond the three every other host in
 //  this PR takes, because a Web App has nowhere to run without one - see
-//  references/azure.md for why that plan has to be Basic tier or above.
+//  https://docs.heliograph.io/azure for why that plan has to be Basic tier or above.
 //
 //  The subnet must be delegated to Microsoft.Web/serverFarms. This is
 //  REGIONAL VNET INTEGRATION, which is outbound-only: it gives the app egress
@@ -13,7 +13,7 @@
 //  path. The app still gets its own public https://<name>.azurewebsites.net
 //  endpoint regardless - closing that needs a private endpoint, which is
 //  extra estate infrastructure this template deliberately does not add. See
-//  references/azure.md for the full trade-off against ACI's true no-inbound
+//  https://docs.heliograph.io/azure for the full trade-off against ACI's true no-inbound
 //  story.
 //
 //  THE CHECKOUT IS TRANSIENT, same as every other host: no file share, no
@@ -129,7 +129,7 @@ resource site 'Microsoft.Web/sites@2023-12-01' = {
       // both ACI templates, this needs no explicit entrypoint path: an empty
       // startArgs leaves appCommandLine empty and the image's own
       // ENTRYPOINT runs with no arguments, exactly like REPO_URL alone on
-      // ACI. See references/azure.md for how this was confirmed by hand.
+      // ACI. See https://docs.heliograph.io/azure for how this was confirmed by hand.
       appCommandLine: join(startArgs, ' ')
       // Keeps the container running with no inbound HTTP traffic. Web Apps
       // idle out and unload the container after ~20 minutes without a
