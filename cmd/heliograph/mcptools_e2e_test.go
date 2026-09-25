@@ -5,9 +5,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/heliograph-io/heliograph/internal/estate"
 	"github.com/heliograph-io/heliograph/internal/mcp"
+	"github.com/heliograph-io/heliograph/internal/wire"
 )
 
 // call finds a shipped tool by name and runs it. Going through the real tool
@@ -377,5 +379,79 @@ func TestStatusWithAnIDSaysNotPickedUpYet(t *testing.T) {
 	id := strings.TrimPrefix(strings.SplitN(out, "\n", 2)[0], "sent ")
 	if !strings.Contains(out, "heliograph_status with id "+id) {
 		t.Errorf("the send reply does not say to poll with the id:\n%s", out)
+	}
+}
+
+// The CLI and the MCP tool publish the same request.
+//
+// They used to build it separately, and the MCP copy left out the target, the
+// expiry and the mode and skipped Validate. A request an agent sent was valid
+// for ever and bound to no station, which is the replay the CLI's defaults
+// exist to prevent - and nothing said so, because both requests ran.
+func TestCLIAndMCPSendTheSameRequest(t *testing.T) {
+	share := estateOnDisk(t)
+	d := scopeDir(t, share)
+	read := func() wire.Request {
+		t.Helper()
+		b, err := os.ReadFile(filepath.Join(d, "request"))
+		if err != nil {
+			t.Fatalf("no request reached the far side: %v", err)
+		}
+		r, err := wire.ParseRequest(b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	window := func(what string, r wire.Request, want time.Duration) {
+		t.Helper()
+		at, err := time.Parse(time.RFC3339, r.Expires)
+		if err != nil {
+			t.Errorf("%s: expires %q is not a time", what, r.Expires)
+			return
+		}
+		if got := time.Until(at); got < want-time.Minute || got > want+time.Minute {
+			t.Errorf("%s: expires in %s, want about %s", what, got.Round(time.Second), want)
+		}
+	}
+
+	if err := cmdSend([]string{"env", "--mode", "read-only"}); err != nil {
+		t.Fatal(err)
+	}
+	cli := read()
+
+	if _, err := call(t, "heliograph_send", map[string]any{"step": "env", "mode": "read-only"}); err != nil {
+		t.Fatal(err)
+	}
+	tool := read()
+
+	if cli.Target == "" || tool.Target != cli.Target {
+		t.Errorf("target: CLI %q, MCP %q - both should name the station, %q", cli.Target, tool.Target, "probe")
+	}
+	if tool.Mode != cli.Mode || tool.Mode != "read-only" {
+		t.Errorf("mode: CLI %q, MCP %q", cli.Mode, tool.Mode)
+	}
+	window("CLI", cli, defaultExpiry)
+	window("MCP", tool, defaultExpiry)
+
+	// The tool's own expiry, and its way of turning it off.
+	if _, err := call(t, "heliograph_send", map[string]any{"step": "net", "expires": "90m"}); err != nil {
+		t.Fatal(err)
+	}
+	window("MCP with 90m", read(), 90*time.Minute)
+	if _, err := call(t, "heliograph_send", map[string]any{"step": "tools", "expires": "0"}); err != nil {
+		t.Fatal(err)
+	}
+	if r := read(); r.Expires != "" {
+		t.Errorf("expires 0 still wrote an expiry: %q", r.Expires)
+	}
+
+	// And the tool validates, as the CLI does. A mode that is neither would be
+	// refused on a machine nobody can reach.
+	if _, err := call(t, "heliograph_send", map[string]any{"step": "env", "mode": "sometimes"}); err == nil {
+		t.Error("the tool published a request with a mode no station accepts")
+	}
+	if _, err := call(t, "heliograph_send", map[string]any{"step": "env", "expires": 0.0}); err == nil {
+		t.Error("a numeric expires was accepted; 0 would have silently meant a day")
 	}
 }

@@ -92,9 +92,13 @@ func tools() []mcp.Tool {
 			"all: a step that declares no mode is refused, and one that changes state needs " +
 			"CONFIRM=yes and a station started with --allow-actions.",
 		Schema: obj(map[string]any{
-			"step":   str("A step registered in the station's run.sh, or a path such as steps/net-probe.sh"),
-			"env":    map[string]any{"type": "object", "description": "Environment for the run, for example {\"HOSTS\":\"sql01 sql02\"}", "additionalProperties": map[string]any{"type": "string"}},
-			"note":   str("Free text for the next human. The station ignores it."),
+			"step": str("A step registered in the station's run.sh, or a path such as steps/net-probe.sh"),
+			"env":  map[string]any{"type": "object", "description": "Environment for the run, for example {\"HOSTS\":\"sql01 sql02\"}", "additionalProperties": map[string]any{"type": "string"}},
+			"note": str("Free text for the next human. The station ignores it."),
+			"mode": map[string]any{"type": "string", "enum": []string{"read-only", "action"},
+				"description": "The mode you expect the step to declare. The station refuses the request if the step declares another, so a step edited after you read it cannot run under your earlier decision."},
+			"expires": str("How long the request stays valid, as a duration such as 24h or 90m. Default 24h. " +
+				"0 means it never expires: only for a station planted long after the request is written."),
 			"estate": estateArg,
 		}, "step"),
 		Call: func(a map[string]any) (string, error) {
@@ -118,12 +122,24 @@ func tools() []mcp.Tool {
 			for _, k := range keys {
 				parts = append(parts, wire.QuoteEnv(k+"="+env[k]))
 			}
-			req := wire.Request{
-				Version: wire.Version,
-				ID:      wire.NewID(step, time.Now()),
-				Step:    step,
-				Env:     strings.Join(parts, " "),
-				Note:    mcp.Str(a, "note"),
+			expires := defaultExpiry
+			// A number is refused rather than read as the default: a caller who
+			// passed 0 meant "no expiry" and would silently get a day.
+			if v, ok := a["expires"]; ok && v != nil {
+				if _, isStr := v.(string); !isStr {
+					return "", fmt.Errorf("expires is a string such as \"24h\", or \"0\" for no expiry, not %v", v)
+				}
+			}
+			if v := mcp.Str(a, "expires"); v != "" {
+				d, err := time.ParseDuration(v)
+				if err != nil {
+					return "", fmt.Errorf("expires %q is not a duration such as 24h or 90m, or 0 for none", v)
+				}
+				expires = d
+			}
+			req, err := newRequest(o, step, parts, mcp.Str(a, "note"), mcp.Str(a, "mode"), expires)
+			if err != nil {
+				return "", err
 			}
 			if err := o.PutRequest(req); err != nil {
 				return "", err
@@ -131,10 +147,14 @@ func tools() []mcp.Tool {
 			// The same record `heliograph send` keeps, so `heliograph watch`
 			// waits for a request an agent sent too.
 			_ = estate.RecordSent(o.Estate.Name, req.ID)
-			return fmt.Sprintf("sent %s\nstep: %s\nenv: %s\n\nThe station picks this up within its poll interval. "+
+			valid := "valid until " + req.Expires
+			if req.Expires == "" {
+				valid = "never expires"
+			}
+			return fmt.Sprintf("sent %s\nstep: %s\nenv: %s\n%s\n\nThe station picks this up within its poll interval. "+
 				"Poll heliograph_status with id %s until state is idle, cancelled, refused, stopped or undelivered. "+
 				"Without the id, the status straight after a send still describes the previous run.",
-				req.ID, step, req.Env, req.ID), nil
+				req.ID, step, req.Env, valid, req.ID), nil
 		},
 	}, {
 		Name: "heliograph_status",

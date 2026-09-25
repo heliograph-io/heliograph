@@ -63,6 +63,28 @@ var noBackgroundGit = []string{
 	"GIT_CONFIG_KEY_1=maintenance.auto", "GIT_CONFIG_VALUE_1=false",
 }
 
+// quietOrigin stops the bare "remote" doing maintenance of its own after a push.
+//
+// noBackgroundGit does not reach it. For a push to a path, git starts
+// receive-pack on the far repository with GIT_CONFIG_COUNT and friends REMOVED
+// from its environment, so the origin runs its own auto maintenance, detached,
+// and it can still be writing into origin.git/objects when the test returns:
+//
+//	TempDir RemoveAll cleanup: unlinkat .../origin.git/objects: directory not empty
+//
+// Seen on CI (git 2.55) in TestWatchWaitsForTheRequestJustSent, which pushes
+// more often than most. The stripping was checked rather than assumed: a
+// post-receive hook in the origin, pushed to with GIT_CONFIG_COUNT set, sees it
+// unset and gc.auto at its default, and sees gc.auto=0 once it is in the
+// origin's own config. So the setting goes there, for every bare origin in this
+// package, since any test that pushes can hit it.
+func quietOrigin(t *testing.T, origin string) {
+	t.Helper()
+	for _, kv := range [][2]string{{"receive.autogc", "false"}, {"gc.auto", "0"}, {"maintenance.auto", "false"}} {
+		sh(t, origin, "git", "config", kv[0], kv[1])
+	}
+}
+
 func sh(t *testing.T, dir string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command(args[0], args[1:]...)
@@ -94,6 +116,7 @@ func TestCLIDrivesAStockStation(t *testing.T) {
 	// wrote: if the station changes what it lays down, this notices.
 	sh(t, base, filepath.Join(station, "station", "bootstrap.sh"), work)
 	sh(t, base, "git", "init", "-q", "-b", "main", "--bare", origin)
+	quietOrigin(t, origin)
 	sh(t, work, "git", "init", "-q", "-b", "main")
 	sh(t, work, "git", "remote", "add", "origin", origin)
 
@@ -179,6 +202,7 @@ func TestGapsFindsARealStall(t *testing.T) {
 
 	sh(t, base, filepath.Join(station, "station", "bootstrap.sh"), work)
 	sh(t, base, "git", "init", "-q", "-b", "main", "--bare", origin)
+	quietOrigin(t, origin)
 	sh(t, work, "git", "init", "-q", "-b", "main")
 	sh(t, work, "git", "remote", "add", "origin", origin)
 
@@ -333,6 +357,7 @@ func TestWatchWaitsForTheRequestJustSent(t *testing.T) {
 
 	sh(t, base, filepath.Join(station, "station", "bootstrap.sh"), work)
 	sh(t, base, "git", "init", "-q", "-b", "main", "--bare", origin)
+	quietOrigin(t, origin)
 	sh(t, work, "git", "init", "-q", "-b", "main")
 	sh(t, work, "git", "remote", "add", "origin", origin)
 

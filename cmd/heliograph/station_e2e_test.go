@@ -40,6 +40,7 @@ func repoPair(t *testing.T) (clone string) {
 	root := t.TempDir()
 	bare := filepath.Join(root, "origin.git")
 	gitAt(t, root, "init", "-q", "--bare", bare)
+	quietOrigin(t, bare)
 
 	clone = filepath.Join(root, "work")
 	gitAt(t, root, "clone", "-q", bare, clone)
