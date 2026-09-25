@@ -40,11 +40,11 @@ docker run --rm \
   -e GIT_TOKEN_FILE=/run/secrets/token \
   -e GIT_TOKEN_USER=x-access-token \
   -v /path/to/token:/run/secrets/token:ro \
-  ghcr.io/dbhq-uk/heliograph-toolkit:1.0.0-rc1
+  ghcr.io/heliograph-io/heliograph-toolkit:0.4.3
 ```
 
-**The tag has no `v`.** Git tag `v1.0.0-rc1` publishes image tag
-`1.0.0-rc1`. This costs somebody twenty minutes roughly every time.
+**The tag has no `v`.** Git tag `v0.4.3` publishes image tag
+`0.4.3`. This costs somebody twenty minutes roughly every time.
 
 | variable | |
 |---|---|
@@ -100,7 +100,7 @@ need are the ones the platform will not give you while it is restarting.
 Reproduce it locally with the same invocation:
 
 ```bash
-docker run --rm -e REPO_URL=... ghcr.io/dbhq-uk/heliograph-toolkit:1.0.0-rc1 -- --check
+docker run --rm -e REPO_URL=... ghcr.io/heliograph-io/heliograph-toolkit:0.4.3 -- --check
 ```
 
 `--check` runs the preflight and changes nothing, and it names every blocking

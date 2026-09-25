@@ -78,7 +78,7 @@ param gitToken string = ''
 param gitTokenUser string = ''
 
 @description('Image to run.')
-param image string = 'ghcr.io/dbhq-uk/heliograph-toolkit:1.0.0-rc1'
+param image string = 'ghcr.io/heliograph-io/heliograph-toolkit:0.4.3'
 
 @description('Arguments for start.sh, and after --, for station.sh. Defaults to `-- --once`: a Job executes once per schedule tick and must exit, unlike the long-running hosts, so --once is what makes that true rather than station.sh polling forever inside a single execution.')
 param startArgs array = [
@@ -154,17 +154,16 @@ resource job 'Microsoft.App/jobs@2024-03-01' = {
           //
           // THE URL TRAVELS IN `args`, NOT AS A REPO_URL ENVIRONMENT
           // VARIABLE, and that is the one place this template deliberately
-          // differs from every other host in this PR. The published image
-          // (ghcr.io/dbhq-uk/heliograph-toolkit:1.0.0-rc1) ships an
-          // entrypoint.sh that refuses outright whenever REPO_URL is set AND
-          // any positional argument is also given - and a Job's whole point
+          // differs from every other host in this PR. The first published
+          // image (1.0.0-rc1, built from the old skill repository) shipped an
+          // entrypoint.sh that refused outright whenever REPO_URL was set AND
+          // any positional argument was also given - and a Job's whole point
           // is passing `--once`, so REPO_URL and an argument are unavoidable
           // together here, unlike the long-running hosts, which pass no
-          // arguments at all in their default configuration. Passing the URL
-          // positionally instead avoids that refusal entirely and needs no
-          // new image tag - see https://docs.heliograph.io/azure for the fix that exists
-          // for this in a newer entrypoint.sh, not yet published, and for
-          // the second option (publish first) this template does not take.
+          // arguments at all in their default configuration. The entrypoint
+          // built from this repository accepts both, but passing the URL
+          // positionally works with every image, old or new, so it stays -
+          // see https://docs.heliograph.io/azure.
           // FOR GIT ONLY. A non-git station has nothing to clone, and the
           // entrypoint refuses a repository URL - positional or REPO_URL -
           // beside a non-git TRANSPORT rather than ignoring it.

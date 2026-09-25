@@ -79,7 +79,7 @@ param gitTokenUser string = ''
 param statusPort int = 8080
 
 @description('Image to run.')
-param image string = 'ghcr.io/dbhq-uk/heliograph-toolkit:1.0.0-rc1'
+param image string = 'ghcr.io/heliograph-io/heliograph-toolkit:0.4.3'
 
 @description('Arguments for start.sh, and after --, for station.sh. The repo URL is NOT one of these: it travels as REPO_URL. Space-joined into the container\'s Startup Command, so no argument here may itself contain a space.')
 param startArgs array = []

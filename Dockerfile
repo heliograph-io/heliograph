@@ -8,8 +8,9 @@
 #  default command because that is what a directory or an MCP client starts it
 #  for, but every other subcommand is here too.
 #
-#  NOT TO BE CONFUSED WITH ghcr.io/dbhq-uk/heliograph-toolkit, which is the
-#  STATION - the far side, built from dbhq-uk/heliograph-skill. The two images
+#  NOT TO BE CONFUSED WITH ghcr.io/heliograph-io/heliograph-toolkit, which is
+#  the STATION - the far side, built from station/bash/docker/Dockerfile in
+#  this repository by publish-image.yml. The two images
 #  sit on opposite sides of the gap and share nothing but the wire format:
 #
 #    heliograph          your machine. Sends steps, reads logs. This file.

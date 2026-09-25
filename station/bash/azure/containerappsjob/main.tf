@@ -107,7 +107,7 @@ variable "gitTokenUser" {
 variable "image" {
   description = "Image to run."
   type        = string
-  default     = "ghcr.io/dbhq-uk/heliograph-toolkit:1.0.0-rc1"
+  default     = "ghcr.io/heliograph-io/heliograph-toolkit:0.4.3"
 }
 
 variable "startArgs" {

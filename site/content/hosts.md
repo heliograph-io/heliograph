@@ -157,7 +157,7 @@ nothing to mount:
 docker run --rm \
   -e TRANSPORT=share -e SHARE_DIR=/mnt/ops -e SHARE_SCOPE=dns-timeouts \
   -v /mnt/ops:/mnt/ops \
-  ghcr.io/dbhq-uk/heliograph-toolkit:1.0.0-rc2
+  ghcr.io/heliograph-io/heliograph-toolkit:0.4.3
 ```
 
 `REPO_URL` alongside a non-git `TRANSPORT` is **refused**, not ignored: it means
@@ -232,8 +232,8 @@ to somebody who can read it. Reach past it when nobody will sit there.
 
 ## Two things that will waste your time
 
-**The published image tag has no `v`.** Git tag `v1.0.0-rc1` publishes
-`ghcr.io/dbhq-uk/heliograph-toolkit:1.0.0-rc1`.
+**The published image tag has no `v`.** Git tag `v0.4.3` publishes
+`ghcr.io/heliograph-io/heliograph-toolkit:0.4.3`.
 
 **A GitHub transport repo needs `GIT_TOKEN_USER=x-access-token`**, or git
 reports a missing username rather than a wrong one, which sends you looking at

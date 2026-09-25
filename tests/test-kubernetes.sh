@@ -197,7 +197,7 @@ fi
 
 # --- the real manifest, two values patched -----------------------------------
 say "applying toolkit/kubernetes/heliograph.yaml"
-sed -e 's|image: ghcr.io/dbhq-uk/heliograph-toolkit:.*|image: heliograph-toolkit:test\n          imagePullPolicy: Never|' \
+sed -e 's|image: ghcr.io/[^/]*/heliograph-toolkit:.*|image: heliograph-toolkit:test\n          imagePullPolicy: Never|' \
     -e 's|value: "https://github.com/YOUR-ORG/YOUR-TRANSPORT-REPO.git"|value: "git://gitd/repo.git"|' \
     "$REPO/station/bash/kubernetes/heliograph.yaml" > "$W/applied.yaml"
 
