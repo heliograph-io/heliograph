@@ -216,6 +216,35 @@ the request's env **and** the station must have been started with
 poll. The loop refuses to run as root. These gates live in the station and the
 CLI; never work around them.
 
+### What binds a request: mode, expiry and who may send it
+
+A request carries more than a step name, and the station checks it before
+the gates above. Three things are yours to set, and a refusal says which one
+failed:
+
+- **`--mode`.** Pass the mode the step declares, and always for an action:
+  `heliograph send fix-dns --mode action CONFIRM=yes`. The station then
+  refuses the request if the step file changed to the other mode after you
+  wrote it. That refusal means the step is not what you reviewed: read it
+  again before you resend.
+- **`--expires`.** A request is valid for 24 hours by default, and a station
+  that reads it later refuses it as expired. `--allow-actions` and
+  `CONFIRM=yes` were decided when it was sent, so the limit stops an old
+  request running again. Pass `--expires 0` (never) only when the station will
+  be planted days after the request is written, or a length such as
+  `--expires 72h` when you know the delay. After an expiry refusal, send the
+  request again.
+- **A trusted set.** Without one, a station accepts whatever its transport
+  verifies, and `heliograph doctor` says "no trusted set on either side". A
+  set names the keys that may command the station and is published in its
+  status, so a colleague can be revoked without a visit to the machine, and
+  on the relay the log records who asked. When more than one person will
+  command a station, run `heliograph trust init` once and give the operator
+  the lines it prints. A bash station then needs `heliograph-seal`.
+
+Detail: <https://docs.heliograph.io/security> and
+<https://docs.heliograph.io/cli>.
+
 A long run is not a black box: the partial log is pushed every 60 seconds with
 a line count and the last real line, so `heliograph status` shows where it has
 got to. The finished log lands in `ops-logs/` in the transport repo, committed

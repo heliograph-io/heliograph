@@ -17,10 +17,10 @@
 # sentence as well. That is the entire point: it is not here to be passed, it is
 # here to make the two files move together.
 #
-# It checks only facts stated HERE. Near-side facts - CLI flags, MCP tool names
-# - belong to the other repository and are checked there, against the binary
-# that implements them, because a copy of them here would be the same drift
-# wearing a different hat.
+# Near-side facts - CLI flags, MCP tool names - used to belong to another
+# repository. Since the 2026-09-08 merge the binary is built from this tree, so
+# the few flags SKILL.md does pass are checked against the verb's own --help
+# below, rather than against a copy of them typed into this file.
 # =============================================================================
 set -uo pipefail
 
@@ -222,6 +222,81 @@ if [ -z "$copied" ]; then
 else
   t_no "SKILL.md does not restate CLI-only flags"
   printf '     found:%s - these belong on the site, next to the binary\n' "$copied"
+fi
+
+# --- what binds a request ----------------------------------------------------
+# The station refuses a request whose declared mode no longer matches the step,
+# and one past its expiry, and `doctor` tells the reader to start a trusted set.
+# SKILL.md said none of it, so an agent could not explain any of those three
+# refusals, or the doctor line, to the person waiting on them. These are the
+# flags the skill does name, on purpose, because an agent has to choose them.
+for term in "--mode" "--expires" "trust init"; do
+  if grep -q -- "$term" "$SKILL"; then
+    t_ok "SKILL.md covers $term"
+  else
+    t_no "SKILL.md covers $term"
+  fi
+done
+
+# The default is a number in prose, so it is read from the code like the
+# progress interval above.
+expiry_hours="$(sed -n 's/^const defaultExpiry = \([0-9]*\) \* time\.Hour$/\1/p' "$HERE/../cmd/heliograph/main.go")"
+if [ -n "$expiry_hours" ] && grep -q "valid for $expiry_hours hours by default" "$SKILL"; then
+  t_ok "SKILL.md's request expiry matches defaultExpiry=${expiry_hours}h"
+else
+  t_no "SKILL.md's request expiry matches defaultExpiry=${expiry_hours:-<unreadable>}h"
+fi
+
+# --- every flag SKILL.md passes to a verb, that verb accepts ------------------
+# A flag in the skill is typed verbatim by an agent. One the verb does not
+# accept stops the command with a usage error in front of somebody who asked
+# for a run. So every `heliograph <verb> ... --flag` in SKILL.md, in a code
+# block or an inline span, is checked against that verb's own --help, from a
+# binary built from this tree. The station moved into this repository on
+# 2026-09-08, so the binary is here to ask.
+cli_uses() {  # "verb<TAB>--flag" for every flag SKILL.md passes to a verb
+  { awk '/^```/ { inb = !inb; next } inb' "$SKILL"
+    grep -o '`heliograph [^`]*`' "$SKILL" | tr -d '`'
+  } | sed 's/[[:space:]]#.*$//' | grep -E '^[[:space:]]*heliograph [a-z]' \
+    | while read -r _ verb rest; do
+        case "$verb" in
+          trust|station|relay)
+            sub="${rest%% *}"
+            case "$sub" in -*|"") ;; *) verb="$verb $sub"; rest="${rest#"$sub"}" ;; esac ;;
+        esac
+        for f in $(printf '%s\n' "$rest" | grep -oE '(^|[[:space:]])--[a-z][a-z-]*'); do
+          printf '%s\t%s\n' "$verb" "$f"
+        done
+      done | sort -u
+}
+if command -v go >/dev/null 2>&1; then
+  cli_bin="$(mktemp -d)/heliograph"
+  if (cd "$HERE/.." && go build -o "$cli_bin" ./cmd/heliograph) 2>/dev/null; then
+    uses="$(cli_uses)"
+    [ -n "$uses" ] || t_no "SKILL.md passes at least one flag to a verb (none found, so this checked nothing)"
+    while IFS="$(printf '\t')" read -r verb flag; do
+      [ -n "$verb" ] || continue
+      # shellcheck disable=SC2086
+      help="$("$cli_bin" $verb --help 2>&1)"
+      if printf '%s\n' "$help" | grep -qE "^[[:space:]]+-${flag#--}( |$)"; then
+        t_ok "heliograph $verb accepts $flag, as SKILL.md passes it"
+      else
+        t_no "heliograph $verb accepts $flag, as SKILL.md passes it"
+      fi
+    done <<< "$uses"
+    for flag in --mode --expires; do
+      if "$cli_bin" send --help 2>&1 | grep -qE "^[[:space:]]+-${flag#--}( |$)"; then
+        t_ok "heliograph send accepts $flag, which SKILL.md names"
+      else
+        t_no "heliograph send accepts $flag, which SKILL.md names"
+      fi
+    done
+    rm -rf "$(dirname "$cli_bin")"
+  else
+    t_no "the CLI builds, so SKILL.md's flags can be checked against it"
+  fi
+else
+  t_skip "no Go toolchain, so SKILL.md's flags were NOT checked against the CLI"
 fi
 
 # --- the term that was retired -----------------------------------------------
