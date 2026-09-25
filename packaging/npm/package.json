@@ -12,7 +12,7 @@
     "air-gapped",
     "ssh-alternative"
   ],
-  "homepage": "https://heliograph.dbhq.uk",
+  "homepage": "https://docs.heliograph.io",
   "bugs": "https://github.com/heliograph-io/heliograph/issues",
   "repository": {
     "type": "git",
