@@ -611,6 +611,7 @@ One issue, one PR.
 | PR | |
 |---|---|
 | #161 | **`watch` reported the previous run straight after a send** (#147) - it stopped on the first finished state and never compared ids, and for a poll interval after a send the status still describes the last request the station read. After an earlier refusal it told the reader to restart the station with `--allow-actions`. `send` now records the id per estate, `watch [id]` waits for it and says `not picked up yet` until the status names it, and stops when the station has moved past it. `status` and `heliograph_status` (new optional `id`) say the same. The Glama listing is still behind, now by one more schema change |
+| #162 | **`heliograph_send` requests never expired and named no station** (#149) - the MCP tool built its own request and left out the target, the 24-hour expiry and the mode, and skipped `Validate`. So an agent's request was valid for ever and bound to no station: the replay the CLI's defaults exist to prevent. One builder, `newRequest`, now serves both; the tool gains `mode` and `expires`, and refuses a numeric `expires` because `0` would have silently meant a day |
 
 ## The signalling toolkit (in design)
 
