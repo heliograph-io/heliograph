@@ -43,6 +43,7 @@ func TestARealStationPublishesItsActionMode(t *testing.T) {
 
 			sh(t, base, filepath.Join(station, "station", "bootstrap.sh"), work)
 			sh(t, base, "git", "init", "-q", "-b", "main", "--bare", origin)
+			quietOrigin(t, origin)
 			sh(t, work, "git", "init", "-q", "-b", "main")
 			sh(t, work, "git", "remote", "add", "origin", origin)
 
