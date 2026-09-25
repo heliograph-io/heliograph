@@ -191,6 +191,18 @@ assert_contains "the log actually reached the far side" "the evidence" "$(delive
 # while, because anything that was not literally `no` became `idle`.
 assert_eq "the far side holds exactly one log" "1" "$(delivered_names | grep -c .)"
 
+# --- a step that does not exist says so --------------------------------------
+# run.ps1 answers `--mode` with 2 for no such step and 3 for no declaration. The
+# loop read only the printed line, so an unknown step was refused as one that
+# "declares no mode" - and the reader was told to add a header to a file that
+# does not exist. station.sh publishes the same reason.
+plant
+request 'id: u1' 'step: no-such-step'
+loop_once
+assert_eq "an unknown step is refused" "refused" "$(published state)"
+assert_contains "  and the reason says the step is unknown, not that it declares no mode" \
+  "unknown step" "$(published reason)"
+
 # =============================================================================
 #  2. GATE 3 - an action is refused unless the STATION was started for it
 # =============================================================================

@@ -153,7 +153,7 @@ than mangling it:
 | | |
 |---|---|
 | `env` | what the box actually is: OS, tools, sudo, proxy, DNS, cloud auth, commit |
-| `net` | connectivity matrix to `HOSTS` on `PORTS`: DNS, ICMP, TCP |
+| `net` or `net-probe` | connectivity matrix to `HOSTS` on `PORTS`: DNS, ICMP, TCP |
 | `tools` | every tool, python module and ODBC driver this host has |
 | `win` | Windows snapshot: OS, hotfixes, services, events |
 

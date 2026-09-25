@@ -452,19 +452,31 @@ function Get-Field {
 $Shell = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
 $Runner = Join-Path $RepoRoot 'run.ps1'
 
+# THE EXIT CODE IS KEPT, in $script:RunnerExit, because run.ps1 answers two
+# different questions with it: 2 is "there is no such step", 3 is "the step
+# declares no mode". Reading only the printed line made an unknown step look
+# like a step with no mode, and the refusal told the reader to add a header to
+# a file that does not exist. station.sh keeps the same code the same way.
+$script:RunnerExit = 0
+
 function Invoke-Runner {
     <#
       .SYNOPSIS
       Run run.ps1 with these arguments and return its first line of output.
+      Its exit code is left in $script:RunnerExit.
     #>
     param([string[]] $RunArgs)
-    try {
-        $out = & $Shell -NoProfile -File $Runner @RunArgs 2>$null | Select-Object -First 1
-        if ($null -eq $out) { return '' }
-        return "$out".Trim()
-    } catch {
-        return ''
-    }
+    # CONTINUE, IN THIS SCOPE ONLY. Windows PowerShell 5.1 turns a line on a
+    # redirected native stderr into a terminating error under Stop, and run.ps1
+    # writes one for exactly the case the exit code has to report.
+    $ErrorActionPreference = 'Continue'
+    # THE WHOLE OUTPUT FIRST, then the first line. A pipeline that
+    # Select-Object stops early never sets $LASTEXITCODE, so the code read after
+    # it belongs to whatever native command ran before.
+    $out = @(& $Shell -NoProfile -File $Runner @RunArgs 2>$null)
+    $script:RunnerExit = $LASTEXITCODE
+    if ($out.Count -eq 0 -or $null -eq $out[0]) { return '' }
+    return "$($out[0])".Trim()
 }
 
 function Get-StepMode { param([string] $Step) return (Invoke-Runner -RunArgs @('--mode', $Step)) }
@@ -1208,6 +1220,13 @@ while ($true) {
     }
 
     $mode = Get-StepMode -Step $step
+    if ($script:RunnerExit -eq 2) {
+        Deny -Id $id -Step $step `
+             -Reason "unknown step '$step': run.ps1 does not register it and there is no step file at that path. The operator lists the registered steps with .\run.ps1 --list; a step file in the transport repo can be sent by its path, e.g. steps/<name>.ps1" `
+             -Local "'$step' is not a registered step or a step file"
+        if ($Once) { Stop-Station }
+        Start-Sleep -Seconds $Interval; continue
+    }
 
     # MODE: the request says what it expected the step to declare. A step file
     # edited from read-only to action between authoring and running would

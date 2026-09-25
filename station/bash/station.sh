@@ -310,7 +310,15 @@ field() { printf '%s\n' "$REQ_BODY" | sed -n "s/^${1}:[[:space:]]*//p" | head -1
 # because a declaration cannot see it: a step that plans is read-only until
 # `env: APPLY=1` makes it apply. Add whatever does that on your branch.
 ACTION_ENV="${ACTION_ENV:-APPLY=1 CONFIRM=yes DESTROY=1 FORCE=1 WRITE=1}"
-step_mode() { ./run.sh --mode "$1" 2>/dev/null | head -1; }
+# step_mode prints the declared mode AND returns run.sh's exit code: 0 for a
+# declared step, 3 for an undeclared one, 2 for no such step. The code is the
+# only thing that tells the last two apart.
+step_mode() {
+  local out rc
+  out="$(./run.sh --mode "$1" 2>/dev/null)"; rc=$?
+  printf '%s\n' "${out%%$'\n'*}"
+  return "$rc"
+}
 step_file() { ./run.sh --file "$1" 2>/dev/null | head -1; }
 
 # The newest log this step could have written, relative to the payload, or
@@ -853,7 +861,17 @@ while :; do
     sleep "$INTERVAL"; continue
   fi
 
-  MODE="$(step_mode "$STEP")"
+  # THE EXIT CODE IS KEPT, because run.sh answers two different questions with
+  # it: 2 is "there is no such step", 3 is "the step declares no mode". Reading
+  # only the printed line made an unknown step look like a step with no mode,
+  # so the refusal told the reader to add a header to a file that does not
+  # exist - about `net-probe`, the name every page of the documentation sends.
+  MODE="$(step_mode "$STEP")"; MODE_RC=$?
+  if [ "$MODE_RC" = "2" ]; then
+    refuse "unknown step '$STEP': run.sh does not register it and there is no step file at that path. The operator lists the registered steps with ./run.sh --list; a step file in the transport repo can be sent by its path, e.g. steps/<name>.sh" \
+           "'$STEP' is not a registered step or a step file"
+    sleep "$INTERVAL"; continue
+  fi
 
   # MODE: the request says what it expected the step to be.
   #
