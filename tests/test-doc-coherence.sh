@@ -98,6 +98,53 @@ else
   t_no "CONFIRM=yes appears in both SKILL.md and run.sh"
 fi
 
+# --- what the far side needs -------------------------------------------------
+# SKILL.md used to say the far side needs "bash 4+, git and GNU coreutils,
+# nothing else", and that nothing done on the control side ever adds a
+# requirement there. Both stopped being true: choosing the relay or starting a
+# trusted set puts heliograph-seal on a bash station, which refuses to start
+# without it. An agent that trusted the old sentence promised an operator
+# something the station then refused.
+#
+# The list of compiled things a station may need is station/FAR-SIDE-BINARIES,
+# which CI already holds to what the station references. So SKILL.md has to
+# name every entry in it - read from the file, not typed here, so a second
+# entry fails this until the skill says so.
+FAR_SIDE="$HERE/../station/FAR-SIDE-BINARIES"
+far_bins="$(grep -vE '^[[:space:]]*(#|$)' "$FAR_SIDE" 2>/dev/null | awk '{print $1}' | sort -u)"
+if [ -z "$far_bins" ]; then
+  t_no "station/FAR-SIDE-BINARIES lists at least one binary the test can read"
+fi
+for bin in $far_bins; do
+  if grep -qF -- "$bin" "$SKILL"; then
+    t_ok "SKILL.md names $bin, which station/FAR-SIDE-BINARIES allows on the far side"
+  else
+    t_no "SKILL.md names $bin, which station/FAR-SIDE-BINARIES allows on the far side"
+    printf '     a station may need it, and an agent will not tell the operator\n'
+  fi
+done
+
+# And the two choices that bring it in, named beside it. The relay is named
+# without its flag, which the check further down keeps off this page.
+seal_para="$(awk '/heliograph-seal/ { p = 1 } p { print } /^$/ { if (p) exit }' "$SKILL")"
+for choice in "relay" "trust init"; do
+  assert_contains "SKILL.md names $choice beside heliograph-seal" "$choice" "$seal_para"
+done
+
+# The busybox sed is a warning in start.sh now, not a refusal, so GNU
+# coreutils cannot be described as a requirement.
+if grep -q 'report warn "sed -u"' "$TOOLKIT/start.sh"; then
+  claims="$(grep -n 'GNU coreutils' "$SKILL" | grep -v 'not required' || true)"
+  if [ -z "$claims" ]; then
+    t_ok "SKILL.md does not call GNU coreutils a requirement"
+  else
+    t_no "SKILL.md does not call GNU coreutils a requirement"
+    printf '     start.sh only warns about a sed without -u:\n     %s\n' "$claims"
+  fi
+else
+  t_no "start.sh still treats a sed without -u as a warning, as SKILL.md says"
+fi
+
 # --- the paths ---------------------------------------------------------------
 # SKILL.md names these as the files the two sides write. They are the contract
 # with the near-side CLI as well, which writes station/request by the same

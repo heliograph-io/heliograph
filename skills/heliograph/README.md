@@ -41,10 +41,14 @@ hard rules, and the references that document the station payload. The gates -
 read-only by default, `CONFIRM=yes`, `--allow-actions` - live in the CLI and
 the station, not here, so there is exactly one driver and nothing to drift.
 
-The station itself is [`station/bash/`](../../station/): plain bash, nothing
-to install on the far side, no credentials of its own. **No Go will ever be
-added under `station/bash/`** - CI enforces it - so "plain bash, you can read
-it before you run it" stays true of everything that crosses the gap.
+The station itself is [`station/bash/`](../../station/): plain bash, no
+credentials of its own. **No Go source will ever be added under
+`station/bash/`** - CI enforces it. The one compiled thing a station may need
+is `heliograph-seal`, for the relay or a trusted set. It is named in
+[`station/FAR-SIDE-BINARIES`](../../station/FAR-SIDE-BINARIES) and built
+reproducibly, so it can be checked against the source it came from.
+Everything else that crosses the gap is plain bash you can read before you
+run it.
 
 ## What is where
 
