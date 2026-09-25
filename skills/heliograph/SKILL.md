@@ -91,9 +91,25 @@ no-CLI fallback is a procedure for a person, not for you: clone
 own, and `--flavour powershell` plants the twin for a box with no bash. Do not reimplement `send`, `watch` or the gates by editing files: one
 driver is the point.
 
-The far side needs bash 4+, git and GNU coreutils, nothing else, and that
-constraint is the whole proposition. Nothing you do on the control side ever
-adds a requirement over there.
+**What the far side needs depends on choices you make here**, so tell the
+operator before they start, not after the station refuses:
+
+- **Always:** bash 4 or newer, plus the tool the transport talks through - git
+  by default, curl for the relay, curl and openssl for the object store. GNU
+  coreutils are not required. A busybox `sed` has no `-u`: the preflight
+  warns, timestamps are unaffected, and a cancelled run loses its partial log.
+- **`heliograph-seal`, one compiled binary placed beside the station**, for
+  either of two choices: the **relay** transport (it encrypts and signs every
+  message), or a **trusted set** started with `heliograph trust init` (it
+  verifies the Ed25519 signatures). A bash station configured for either
+  refuses to start without it rather than run unverified. `plant` for a
+  relay estate and `trust init` both print the operator's steps with it, and
+  its checksum is published with each release. The PowerShell station needs
+  no binary for either, because its seal ships as source.
+
+`station/FAR-SIDE-BINARIES` is the whole list of compiled things a station may
+need. Git, the file share, the bundle and the object store, with no trusted
+set, need no binary at all.
 
 ## 1. Set up
 
