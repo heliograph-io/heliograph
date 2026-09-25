@@ -194,3 +194,31 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: A STRANGER can pull it
+        # Everything above is logged in to ghcr.io, so it passes just as happily
+        # on a PRIVATE package, and private is what GitHub Packages gives a
+        # container it has not seen before. That is where this image was: the
+        # move to heliograph-io published it under a new name, and an anonymous
+        # token request for it answered `UNAUTHORIZED: authentication required`
+        # while SKILL.md, the site and every Azure template still pointed at the
+        # old name. release.yml asks the same question of the control image.
+        #
+        # Every documented `docker run` and every template default is written
+        # for somebody who has not logged in to ghcr.io and never will, so a
+        # tag they cannot pull is a failed publish.
+        run: |
+          set -euo pipefail
+          img="${IMAGE#ghcr.io/}"
+          tag="${GITHUB_REF_NAME#v}"
+          tok="$(curl -sS "https://ghcr.io/token?scope=repository:${img}:pull&service=ghcr.io" | jq -r '.token // empty')"
+          code="$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer ${tok}" \
+            -H 'Accept: application/vnd.oci.image.index.v1+json' \
+            -H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
+            "https://ghcr.io/v2/${img}/manifests/${tag}")"
+          if [ "$code" != "200" ]; then
+            echo "::error::ghcr.io/${img}:${tag} is not anonymously pullable (HTTP ${code}). The package is private, so every documented docker run and every template default fails for everybody but us. Make it public: the organisation's package settings first (https://github.com/organizations/${GITHUB_REPOSITORY_OWNER}/settings/packages, Package creation, tick Public), then the package's own settings, Change visibility, Public. The package page greys Public out until the organisation allows it. Neither setting has a REST endpoint, so this one is a person."
+            exit 1
+          fi
+          echo "anonymous pull of ghcr.io/${img}:${tag} returns 200"

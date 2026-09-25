@@ -60,7 +60,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: agent
-          image: ghcr.io/dbhq-uk/heliograph-toolkit:1.0.0-rc2
+          image: ghcr.io/heliograph-io/heliograph-toolkit:0.4.3
           env:
             # --- git, the default -------------------------------------------
             - name: REPO_URL

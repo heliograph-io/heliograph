@@ -352,8 +352,8 @@ bring-your-own-network, and the checkout is transient - git is the
 persistence.
 
 Two things that will waste your time if you do not know them: the published
-image tag has no `v` (git tag `v1.0.0-rc1`, image
-`ghcr.io/dbhq-uk/heliograph-toolkit:1.0.0-rc1`), and a GitHub transport repo
+image tag has no `v` (git tag `v0.4.3`, image
+`ghcr.io/heliograph-io/heliograph-toolkit:0.4.3`), and a GitHub transport repo
 needs `GIT_TOKEN_USER=x-access-token` or git reports a missing username
 rather than a wrong one. Everything else:
 <https://docs.heliograph.io/azure.md>.
