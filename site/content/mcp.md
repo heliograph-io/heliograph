@@ -47,6 +47,7 @@ tools can reach it.
 | `heliograph_estates` | what is configured here, and which transport each uses |
 | `heliograph_send` | publish a step, and return. It does **not** wait |
 | `heliograph_status` | what the station is doing now |
+| `heliograph_wait` | wait for one request to finish, for at most `max_seconds`, with progress |
 | `heliograph_cancel` | kill the running step, on git or a file share |
 | `heliograph_stop` | end the station's loop after the current run |
 | `heliograph_logs` | the captured logs, newest first |
@@ -58,6 +59,20 @@ tools can reach it.
 It names the station it was written for, expires after 24 hours unless you pass
 `expires` (`"0"` for never), and takes the optional `mode` the step must
 declare. A request an agent sends is bound exactly as one typed at the CLI.
+
+## What a client is told about each tool
+
+Every tool carries annotations. `heliograph_estates`, `heliograph_status`,
+`heliograph_wait`, `heliograph_logs`, `heliograph_read_log`, `heliograph_gaps`
+and `heliograph_doctor` are marked read-only, so a client can let a model read
+without asking each time. `heliograph_send`, `heliograph_cancel` and
+`heliograph_stop` are marked as changing things, and a client that asks before
+a write asks before those.
+
+The server speaks MCP `2025-06-18`, `2025-03-26` and `2024-11-05`, and answers
+with the version the client asks for. `heliograph_wait` sends progress
+notifications while it waits, when the client asks for them with a progress
+token.
 
 ## Why tools and not just the skill
 
@@ -95,10 +110,13 @@ the run has started. An agent that treats the reply as the result will read the
 and the shape of the loop is:
 
 1. `heliograph_send`
-2. `heliograph_status` with the `id` it returned, until the state is `idle`,
-   `cancelled`, `refused`, `stopped` or `undelivered`. With the id, a status
-   about an earlier request comes back as `not picked up yet` instead of as
-   this one's result
+2. `heliograph_wait` with the `id` it returned, until the state is `idle`,
+   `cancelled`, `refused`, `stopped` or `undelivered`. It waits for at most
+   `max_seconds` (60 by default, 600 at most); at the limit it says the run
+   carries on, and you call it again. With the id, a status about an earlier
+   request comes back as `not picked up yet` instead of as this one's result.
+   `heliograph_status` with the id answers the same question once, without
+   waiting
 3. `heliograph_gaps` to find where the time went
 4. `heliograph_read_log` for the whole thing
 
