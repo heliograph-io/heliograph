@@ -1053,6 +1053,7 @@ function Stop-Station {
 try {
 
 $Fails = 0
+$script:Claimed = $false
 while ($true) {
     $body = Receive-TpRequest
     # $null MEANS FAILED and '' means nothing is queued. Collapsing them is how
@@ -1106,6 +1107,30 @@ while ($true) {
                 Write-Say "If nothing supervises it, start it again:  .\station.ps1$(if ($argv.Count) { ' ' + ($argv -join ' ') })"
                 Stop-Station -Code 75
             }
+        }
+    }
+
+    # CLAIM THE BRANCH, once, after the first good fetch. A branch cut from
+    # another carries that branch's station/status, which names the other
+    # branch, and the control side refuses to send to a branch whose status
+    # names a different one. So a station that has just started here publishes
+    # its own - and only then, because a status that already names this branch
+    # is this station's last run. Only over git, the one transport where a scope
+    # is cut from another and carries its files. station.sh does the same.
+    if (-not $script:Claimed -and $env:TRANSPORT -ceq 'git') {
+        $script:Claimed = $true
+        $publishedStatus = Join-Path $RepoRoot 'station/status'
+        $publishedFrom = ''
+        if (Test-Path -LiteralPath $publishedStatus -PathType Leaf) {
+            try { $publishedFrom = Get-Field -Body ([System.IO.File]::ReadAllText($publishedStatus)) -Name 'branch' } catch { $publishedFrom = '' }
+        }
+        if ($publishedFrom -and $publishedFrom -cne $Scope) {
+            Write-Say "the published status is from '$publishedFrom', not '$Scope' - publishing this station's own"
+            $lastIdAtStart = ''
+            if (Test-Path -LiteralPath $StateFile -PathType Leaf) {
+                try { $lastIdAtStart = ([System.IO.File]::ReadAllText($StateFile)).Trim() } catch { $lastIdAtStart = '' }
+            }
+            Publish-Status -State 'starting' -Id $lastIdAtStart -Step ''
         }
     }
 

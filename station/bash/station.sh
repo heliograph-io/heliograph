@@ -686,6 +686,7 @@ LAST_ID="$(cat "$STATE_FILE" 2>/dev/null || echo)"
 [ -n "$LAST_ID" ] && say "last request handled here: $LAST_ID"
 
 FAILS=0
+CLAIMED=0
 while :; do
   # A fetch failure is a blip, not a reason to die - this loop is meant to
   # outlive a flapping link. Report it, back off a little, carry on.
@@ -740,6 +741,28 @@ while :; do
   # request away - every poll, forever, while reporting nothing wrong. A
   # relay station has never been able to run a step.
   #
+  # CLAIM THE BRANCH, once, after the first good fetch.
+  #
+  # A branch cut from another carries that branch's station/status, which
+  # names the other branch and describes another machine's last run. The
+  # control side refuses to send to a branch whose status names a different
+  # one, because by that status no station reads it. So a station that has
+  # just started here publishes its own, rather than waiting for a request the
+  # control side will not send until it does.
+  #
+  # ONLY THEN. A status that already names this branch is this station's last
+  # run, and a restart must not overwrite its exit and log with a `starting`
+  # that carries neither. And only over git, the one transport where a scope is
+  # cut from another and carries its files.
+  if [ "$CLAIMED" = "0" ] && [ "$TRANSPORT" = "git" ]; then
+    CLAIMED=1
+    PUBLISHED_FROM="$(sed -n 's/^branch:[[:space:]]*//p' "$STATUS" 2>/dev/null | head -1)"
+    if [ -n "$PUBLISHED_FROM" ] && [ "$PUBLISHED_FROM" != "$BRANCH" ]; then
+      say "the published status is from '$PUBLISHED_FROM', not '$BRANCH' - publishing this station's own"
+      publish_status "starting" "$LAST_ID_AT_START" ""
+    fi
+  fi
+
   # git is unaffected: its tp_fetch_request cats that same file, so an absent
   # or empty request yields an empty body here exactly as before.
   [ -n "$REQ_BODY" ] || { sleep "$INTERVAL"; continue; }

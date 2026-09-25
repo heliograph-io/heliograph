@@ -519,3 +519,116 @@ func TestTheDocumentedStepRunsAndAnUnknownOneSaysWhy(t *testing.T) {
 		t.Errorf("watch did not print the station's reason:\n%s", w)
 	}
 }
+
+// A send from a branch no station reads is refused, naming both branches.
+//
+// SKILL.md told an agent to cut `task/<slug>`, commit and send. The branch
+// inherits main's station/status, and a station still on main never reads it,
+// so the request waited for nothing while `watch` and `doctor` reported main's
+// last run as the answer. The status names the branch it was published from,
+// which is all the CLI needs to notice.
+//
+// And the other half: `station add` cuts a branch too, and the send it prints
+// must still go through before the new station has ever run.
+func TestSendRefusesABranchNoStationReads(t *testing.T) {
+	station := stationDir(t)
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("no bash")
+	}
+
+	base := t.TempDir()
+	origin := filepath.Join(base, "origin.git")
+	work := filepath.Join(base, "work")
+	cfg := filepath.Join(base, "config")
+
+	sh(t, base, filepath.Join(station, "station", "bootstrap.sh"), work)
+	sh(t, base, "git", "init", "-q", "-b", "main", "--bare", origin)
+	quietOrigin(t, origin)
+	sh(t, work, "git", "init", "-q", "-b", "main")
+	sh(t, work, "git", "remote", "add", "origin", origin)
+	// A step of our own rather than `env`, which probes the network and the
+	// cloud CLIs and takes as long as this machine makes it take.
+	probe := "#!/usr/bin/env bash\n# heliograph-mode: read-only\necho PROBED\n"
+	if err := os.WriteFile(filepath.Join(work, "steps", "probe.sh"), []byte(probe), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sh(t, work, "git", "add", "-A")
+	sh(t, work, "git", "commit", "-qm", "init")
+	sh(t, work, "git", "push", "-q", "-u", "origin", "main")
+
+	bin := filepath.Join(base, "heliograph")
+	sh(t, ".", "go", "build", "-o", bin, "github.com/heliograph-io/heliograph/cmd/heliograph")
+	run := func(args ...string) (string, error) {
+		t.Helper()
+		cmd := exec.Command(bin, args...)
+		cmd.Dir = base
+		cmd.Env = append(append(os.Environ(), "XDG_CONFIG_HOME="+cfg,
+			"GIT_AUTHOR_NAME=ci", "GIT_AUTHOR_EMAIL=ci@example.invalid",
+			"GIT_COMMITTER_NAME=ci", "GIT_COMMITTER_EMAIL=ci@example.invalid"), noBackgroundGit...)
+		out, err := cmd.CombinedOutput()
+		return string(out), err
+	}
+	hg := func(args ...string) string {
+		t.Helper()
+		out, err := run(args...)
+		if err != nil {
+			t.Fatalf("heliograph %v: %v\n%s", args, err, out)
+		}
+		return out
+	}
+
+	// A station that has run on main, so main carries a status naming main.
+	hg("init", "e2e", "--dir", work)
+	hg("send", "steps/probe.sh")
+	sh(t, work, "bash", "./station.sh", "--once", "--interval", "1")
+	sh(t, work, "git", "pull", "-q", "--rebase", "origin", "main")
+
+	// The workflow SKILL.md used to give: cut a task branch, push it, send.
+	sh(t, work, "git", "checkout", "-q", "-b", "task/x")
+	sh(t, work, "git", "push", "-q", "-u", "origin", "task/x")
+
+	before := sh(t, work, "git", "ls-remote", "origin", "refs/heads/task/x")
+	out, err := run("send", "steps/probe.sh")
+	if err == nil {
+		t.Fatalf("send published to a branch no station reads:\n%s", out)
+	}
+	if !strings.Contains(out, `"main"`) || !strings.Contains(out, `"task/x"`) {
+		t.Errorf("the refusal does not name both branches:\n%s", out)
+	}
+	if after := sh(t, work, "git", "ls-remote", "origin", "refs/heads/task/x"); after != before {
+		t.Error("the refused request reached the remote anyway")
+	}
+
+	w, _ := run("watch", "--interval", "1s", "--timeout", "2s")
+	if !strings.Contains(w, "warning:") || !strings.Contains(w, `"main"`) || !strings.Contains(w, `"task/x"`) {
+		t.Errorf("watch did not warn that the status is another branch's:\n%s", w)
+	}
+	d, err := run("doctor")
+	if err == nil || !strings.Contains(d, "FAIL") || !strings.Contains(d, `"main"`) || !strings.Contains(d, `"task/x"`) {
+		t.Errorf("doctor did not fail on a status another branch published (err %v):\n%s", err, d)
+	}
+
+	// Once a station has published from the task branch, the send goes through:
+	// the refusal is about the branch, not the estate. A clone of its own, as an
+	// operator's would be. It refuses main's inherited request, which names
+	// main as its target, and that refusal is published from task/x.
+	far := filepath.Join(base, "far")
+	sh(t, base, "git", "clone", "-q", "-b", "task/x", origin, far)
+	sh(t, far, "bash", "./station.sh", "--once", "--interval", "1")
+	hg("send", "steps/probe.sh")
+	sh(t, far, "bash", "./station.sh", "--once", "--interval", "1")
+	if body := hg("logs", "--last"); !strings.Contains(body, "PROBED") {
+		t.Errorf("the request sent once the station was on task/x did not run there:\n%s", body)
+	}
+
+	// `station add` cuts station/db-a from a checkout whose status names
+	// task/x. The send it prints goes through before that station has run.
+	add := hg("station", "add", "db-a")
+	if !strings.Contains(add, "heliograph send <step> -e db-a") {
+		t.Fatalf("station add did not print the send it expects to work:\n%s", add)
+	}
+	hg("send", "steps/probe.sh", "-e", "db-a")
+	if d := hg("doctor", "-e", "db-a"); !strings.Contains(d, "published no status yet") {
+		t.Errorf("a new station's doctor reports another station's status as its own:\n%s", d)
+	}
+}

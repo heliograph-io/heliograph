@@ -72,6 +72,10 @@ than doing none:
    side has one checkout per station and never switches between them
 3. records the estate, so `-e db-a` routes to that machine
 
+And it removes the station status the new branch inherited from the one it was
+cut from. That status describes another machine, and `send` would refuse to
+publish under it.
+
 Then it prints what to send the operator, which is the point of the other three.
 
 `--dir` puts the checkout somewhere other than beside the existing one.
@@ -148,6 +152,33 @@ request lifted out of a transport repo would be good for ever, and
 `--allow-actions` and `CONFIRM=yes` were decided before it. `--expires 0` turns
 the limit off, for an estate that plants its station days after the request is
 written.
+
+### It refuses a branch no station reads
+
+The status a station publishes names the branch it runs on. `send` reads it
+first, and if it names a different branch from the one this checkout sends to,
+it publishes nothing and says both:
+
+```
+heliograph: not sent: the station last published from "main", and this estate sends to "task/x".
+```
+
+That is what a task branch looks like before a station is on it. `git checkout
+-b` copies the parent branch's status, and a station still on the parent never
+reads the new branch, so a request there waits for nothing while `watch` and
+`doctor` read the parent's last run as the answer. `watch` warns about the same
+thing and `doctor` fails on it.
+
+Cut and push the branch, then have the operator restart the station on it:
+`heliograph plant` prints the commands. A station publishes its own status as
+soon as it starts on a branch whose status names another, and `send` works from
+then on. `station add` removes the status its new branch inherits, so the send
+it prints works before that station has run.
+
+A station older than this does not publish when it starts, only when it runs
+something. Until it is updated, remove the inherited status by hand -
+`git rm station/status`, commit, push - and `send` treats the branch as one
+whose station has not published yet.
 
 ## status
 

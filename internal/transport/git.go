@@ -402,3 +402,29 @@ func (g *Git) AddWorktree(dir, branch string) error {
 	}
 	return nil
 }
+
+// ForgetInheritedStatus removes the station status a new branch was created
+// with, and pushes that. It reports whether there was one.
+//
+// A BRANCH CUT FROM ANOTHER CARRIES THAT BRANCH'S station/status, and it
+// describes another machine's last run. The control side refuses to send to a
+// branch whose status names a different one, because no station reads it - so
+// a station branch that kept its parent's status would refuse the send that
+// `station add` itself prints, until the new station had published once. With
+// none, the new station reads as what it is: one that has not started yet.
+func (g *Git) ForgetInheritedStatus() (bool, error) {
+	if _, err := os.Stat(filepath.Join(g.dir, filepath.FromSlash(statusPath))); err != nil {
+		return false, nil
+	}
+	if _, err := g.git("rm", "--quiet", "--", statusPath); err != nil {
+		return false, err
+	}
+	if _, err := g.git("commit", "--quiet", "-m",
+		"station: "+g.branch+" has published nothing yet ***NO_CI***", "--", statusPath); err != nil {
+		return false, err
+	}
+	if _, err := g.git("push", "--quiet", "origin", "HEAD:"+g.branch); err != nil {
+		return false, fmt.Errorf("removed the inherited status locally but could not push it: %w", err)
+	}
+	return true, nil
+}

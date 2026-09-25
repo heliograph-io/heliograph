@@ -124,11 +124,21 @@ set, need no binary at all.
 ```bash
 heliograph bootstrap ~/transport/payments     # plant the station payload
 cd ~/transport/payments && git init && git add -A && git commit -m 'heliograph: transport repo'
-# add a PRIVATE remote, push, then:
+# add a PRIVATE remote and push main, then cut the investigation's branch and
+# push that too, BEFORE planting: the station runs on the branch it is given
+git checkout -b task/<slug> && git push -u origin task/<slug>
 heliograph init payments --dir ~/transport/payments
 heliograph doctor                             # will this work from here
 heliograph plant                              # the message to send the operator
 ```
+
+**The station reads one branch: the one it was started on.** `plant` run on
+`task/<slug>` tells the operator to check that branch out. A request on any
+other branch is never picked up, so `heliograph send` refuses to publish where
+the status names a different branch, and names both. `doctor` fails on the same
+thing and `watch` warns. A branch cut from another carries that branch's
+status until a station starts on it; a station publishes its own as soon as it
+starts.
 
 **The transport repo must be private, and must be its own repo.** Captured
 logs are committed to it, so everything the operator's commands print lands in
@@ -165,7 +175,9 @@ hypothesis to re-test, never a premise to build on.
 
 Steps live in the transport repo, one file per question:
 
-1. `git checkout -b task/<slug>` in the transport repo
+1. Work on the `task/<slug>` branch from set-up. A later investigation is a
+   new branch: cut it, push it, and have the operator restart the station on
+   it (`heliograph plant` prints the commands) before you send anything
 2. Fill in `TASK.md`: the question, what is known, what would settle it. It is
    what stops the steps becoming a fishing trip
 3. `cp steps/_template.sh steps/<name>.sh`, write the probes
