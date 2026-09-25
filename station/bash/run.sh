@@ -184,10 +184,13 @@ refuse_bom() {
 STEP_FILE=""
 case "$STEP" in
   env)  CMD=(./steps/env-snapshot.sh) ;;
+  net)  CMD=(./steps/net-probe.sh) ;;
   # `net-probe` is the name every page of the documentation sends, because it
   # is the file's name. It was not registered, so the flagship example was
-  # refused on every stock station.
-  net|net-probe)  CMD=(./steps/net-probe.sh) ;;
+  # refused on every stock station. Its own line, and `net)` above left exactly
+  # as it was: people add a step by anchoring a sed on that line, and so do
+  # this repository's own CI and tests/test-remote.sh.
+  net-probe)  CMD=(./steps/net-probe.sh) ;;
   win)  ps_step ./steps/win-snapshot.ps1 ;;
   tools) CMD=(./steps/tools-inventory.sh) ;;
 
