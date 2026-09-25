@@ -127,6 +127,28 @@ the CLI has already eaten your quotes, and the station splits that line the way
 a shell would, so an unquoted value would set the first word and try to *run*
 the rest.
 
+### Mode and expiry
+
+Two flags bind a request beyond its step and environment:
+
+```bash
+heliograph send steps/fix-dns.sh --mode action CONFIRM=yes   # refused if the step no longer declares action
+heliograph send env --expires 72h                            # valid for three days instead of one
+```
+
+`--mode` is the mode you expect the step to declare, `read-only` or `action`.
+The step file still decides what the gates do. This refuses a request whose
+author was looking at something else: a step edited from read-only to action
+after the request was written would otherwise run with the earlier decision's
+authority.
+
+`--expires` is how long the request stays valid, 24 hours by default. A station
+that reads it later refuses it and says so in its status. Without a limit, a
+request lifted out of a transport repo would be good for ever, and
+`--allow-actions` and `CONFIRM=yes` were decided before it. `--expires 0` turns
+the limit off, for an estate that plants its station days after the request is
+written.
+
 ## status
 
 What the station is doing, from the document it publishes on every transition.
