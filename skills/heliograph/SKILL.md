@@ -25,8 +25,8 @@ are masked, and the log comes back **whether the run passed or failed**.
 - The machine is in an environment you have no interactive access to.
 - The only person who can reach it has other work to do and should not be your terminal.
 - Several rounds of "run this and paste the output" have already gone badly.
-- The repo that has to *change* is also on the far side (see
-  [references/remote-repo.md](references/remote-repo.md)).
+- The repo that has to *change* is also on the far side (see the last part
+  of [references/method.md](references/method.md)).
 
 If you can SSH in yourself, do that instead and do not use this skill.
 
@@ -141,7 +141,7 @@ alone.
 carries no credential, deliberately. If the loop is to run unattended, decide
 the credential now - a forwarded ssh agent key dies with the session; an
 unattended loop needs a key on disk, a deploy key, or a token in
-`~/.git-token`. See [references/transport.md](references/transport.md).
+`~/.git-token`. See <https://docs.heliograph.io/service.md>.
 
 Git is the default. A mounted file share, a signed bundle for a true air gap,
 an S3-compatible object store and the relay are all available at `init`, and
@@ -278,11 +278,11 @@ yet:
 - **The control node cannot reach git at all.** `./drop.sh send <id> <step>`
   and `./drop.sh watch <id>` carry the same contract over Azure Blob Storage;
   neither side ever reaches the other. Measure before reaching for it - see
-  [references/beacon.md](references/beacon.md).
+  <https://docs.heliograph.io/flare.md>.
 - **You can reach the station directly.** An Azure Function App inside the
   VNet with a public HTTPS endpoint makes storage pointless indirection:
   `./intercom.sh run steps/<name>.sh K=V`. Read
-  [references/flare.md](references/flare.md) before exposing it - the
+  <https://docs.heliograph.io/flare.md> before exposing it - the
   function key and IP allowlist become the real gates.
 
 ## 5. Read the log
@@ -330,8 +330,8 @@ hard investigation.
 Sometimes there is no willing human to start `./start.sh` and leave it
 running. The station payload's `azure/` runs it as Azure infrastructure
 instead: Container Instances, Web App for Containers and a scheduled
-Container Apps Job are deployed and proven; a VM with a systemd unit and a
-Function App on Flex Consumption are written and validated. All
+Container Apps Job and a VM with a systemd unit are deployed and proven; a
+Function App on Flex Consumption is written and validated, never deployed. All
 bring-your-own-network, and the checkout is transient - git is the
 persistence.
 
@@ -340,7 +340,7 @@ image tag has no `v` (git tag `v1.0.0-rc1`, image
 `ghcr.io/dbhq-uk/heliograph-toolkit:1.0.0-rc1`), and a GitHub transport repo
 needs `GIT_TOKEN_USER=x-access-token` or git reports a missing username
 rather than a wrong one. Everything else:
-[references/azure.md](references/azure.md).
+<https://docs.heliograph.io/azure.md>.
 
 ## Secrets
 
@@ -365,20 +365,25 @@ better than two:
 | <https://heliograph.dbhq.uk/mcp> | the MCP tools, for driving this from an agent |
 | <https://heliograph.dbhq.uk/transports> | git, file share, bundle, object store, relay |
 
-Far side, here, because it documents the payload:
+The far side is on the web too, for the same reason. The site is tested
+against this repository, and a second copy here went stale beside it. Fetch
+the `.md` form of a page rather than the HTML:
 
 | | |
 |---|---|
-| [references/steps.md](references/steps.md) | writing a step, and the traps that cost round trips |
-| [references/runner.md](references/runner.md) | `start.sh`, `run.sh`, `station.sh`, `caprun.sh`, every `cap_*` and knob |
-| [references/method.md](references/method.md) | how to debug across a gap. The expensive lessons |
-| [references/transport.md](references/transport.md) | how the control node authenticates to the git host |
-| [references/beacon.md](references/beacon.md) | the blob transport, for a control node that cannot reach git at all |
-| [references/flare.md](references/flare.md) | the HTTP transport, for the rarer case where you can reach the station |
-| [references/azure.md](references/azure.md) | running the station in Azure, and what deploying it taught us |
+| <https://docs.heliograph.io/runner.md> | `start.sh`, `run.sh`, `station.sh`, `caprun.sh`, every `cap_*` and knob |
+| <https://docs.heliograph.io/service.md> | making the loop outlive the session that started it, and the credential an unattended loop needs |
+| <https://docs.heliograph.io/hosts.md> | every host, the contract it must meet, and which ones are actually proven |
+| <https://docs.heliograph.io/containers.md> | running the station in a container: what ships, why, and the honest limits |
+| <https://docs.heliograph.io/azure.md> | running the station in Azure, and what deploying it taught |
+| <https://docs.heliograph.io/flare.md> | the HTTP flare, for when you can reach the station, and the Azure Blob beacon for when nothing can reach git |
+| <https://docs.heliograph.io/windows.md> | a Windows station, steps written in PowerShell, and what line endings really do |
+
+Here, offline, because they change how you work rather than describe the code,
+and you need them in the middle of an investigation:
+
+| | |
+|---|---|
+| [references/steps.md](references/steps.md) | writing a step, the helpers in `lib/`, and the traps that cost round trips |
+| [references/method.md](references/method.md) | how to debug across a gap, and how to change a repo that is also on the far side. The expensive lessons |
 | [references/secrets.md](references/secrets.md) | `secret.sh`, for a value that has to reach the far side |
-| [references/remote-repo.md](references/remote-repo.md) | changing a repo that is also on the far side |
-| [references/container.md](references/container.md) | running the control node in a container: what ships, why, and the honest limits |
-| [references/windows.md](references/windows.md) | a Windows control node, steps written in PowerShell, and what line endings really do |
-| [references/service.md](references/service.md) | making the loop outlive the session that started it |
-| [references/hosts.md](references/hosts.md) | every host, the contract it must meet, and which ones are actually proven |

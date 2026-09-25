@@ -164,7 +164,7 @@ suggest bootstrapping into a repo that holds anything else.
 clones or reuses a checkout, and `exec ./start.sh`. Everything past the clone
 stays `start.sh`'s alone. The unprivileged user in the image is not a
 security boundary. Full account:
-[`skills/heliograph/references/container.md`](skills/heliograph/references/container.md).
+[`site/content/containers.md`](site/content/containers.md).
 
 **7. `station.ps1` is a launcher, never a port.** It finds the bash Git for
 Windows installed and hands over to `start.sh`. A PowerShell copy of the
@@ -173,14 +173,14 @@ gives every line the same timestamp, which reads like a working log. A step
 *written in* PowerShell is fine - `ps_step` runs one through the ordinary
 capture. The station ships `gitattributes` pinning the transport repo to LF
 so that committed CRLF never breaks a Linux clone; see
-[`skills/heliograph/references/windows.md`](skills/heliograph/references/windows.md).
+[`site/content/windows.md`](site/content/windows.md).
 
 **8. `station.sh` does not trap HUP, and that is deliberate.** `cleanup`
 signals the running step's process group, so trapping HUP would kill an
 in-flight step every time a connection dropped. `station/bash/service.sh`
 (systemd `--user` plus lingering, or setsid + nohup) is the supported way to
 survive logout; `service.ps1` does the same with a scheduled task. See
-[`skills/heliograph/references/service.md`](skills/heliograph/references/service.md).
+[`site/content/service.md`](site/content/service.md).
 
 ## The two rules specific to the relay
 

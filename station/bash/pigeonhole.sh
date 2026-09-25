@@ -17,7 +17,7 @@
 #  cannot reach you, and both can reach one agreed place. Azure Blob Storage
 #  behind a private endpoint is that place, because traffic to a private
 #  endpoint is VNet-local and never touches the route that is blocking
-#  everything else. See references/pigeonhole.md.
+#  everything else. See https://docs.heliograph.io/flare.
 #
 #  WHY A SEPARATE FILE AND NOT A FLAG ON station.sh. Wherever this is needed, a
 #  git runner is usually still working somewhere else in the same estate. Two
@@ -191,7 +191,7 @@ set_auth() {   # set_auth <container/path>
 # THE CLIENT. curl is the one HTTP client that can be relied on. An image
 # minimal enough to be worth deploying may have no `az` and no Python SDK, and
 # nothing can be installed at runtime on a host that cannot reach a package
-# repository. See references/pigeonhole.md.
+# repository. See https://docs.heliograph.io/flare.
 
 drop_get() {
   # drop_get <container/path> [outfile]  -> 0 found, 1 absent, 2 error

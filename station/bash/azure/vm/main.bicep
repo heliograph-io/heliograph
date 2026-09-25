@@ -84,7 +84,7 @@ param vmSize string = 'Standard_B1s'
 @description('Admin username for SSH access - the operator\'s way in for debugging, distinct from the unprivileged "heliograph" user cloud-init.sh creates to run the agent itself.')
 param adminUsername string = 'azureuser'
 
-@description('SSH public key for adminUsername. Azure requires either this or a password for a Linux VM; a key is the safer default and the one references/transport.md already recommends over a stored credential.')
+@description('SSH public key for adminUsername. Azure requires either this or a password for a Linux VM; a key is the safer default and the one https://docs.heliograph.io/transports already recommends over a stored credential.')
 param adminSshPublicKey string
 
 var cloudInitTemplate = loadTextContent('cloud-init.sh')

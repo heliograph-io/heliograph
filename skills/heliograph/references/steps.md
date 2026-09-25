@@ -59,9 +59,21 @@ From `lib/probe.sh`, sourced by every step:
 | `probe_summary` | print the tally. Returns 1 if anything failed |
 | `have <tool>` | quiet "is this on PATH" |
 
-`lib/remote.sh`, `lib/terraform.sh`, `lib/ansible.sh` and `lib/tfguard.sh` are
-opt-in: source the ones the step needs. See
-[runner.md](runner.md#lib---helpers-for-step-scripts).
+The rest are opt-in: source the ones the step needs.
+
+| | |
+|---|---|
+| `lib/remote.sh` | `rt_dns`, `rt_ping`, `rt_tcp` (pure bash, no `nc`), `rt_matrix` (host by port), `rt_ssh` (BatchMode, time-bounded), `rt_ps` and `rt_win_info` (PowerShell on a Windows host over SSH) |
+| `lib/terraform.sh` | `tf_init`, `tf_validate`, `tf_plan`, `tf_show`, `tf_state_list`, `tf_output` and friends. Read-only on purpose: no apply, no destroy, no `state rm` |
+| `lib/tfguard.sh` | `tf_lock_guard` puts back a tracked `.terraform.lock.hcl` that something moved, and `tg` runs terragrunt, retrying only when the subcommand name was rejected |
+| `lib/ansible.sh` | `an_ping`, `an_win_ping`, `an_facts`, `an_play`, `an_check`, `an_list`, `an_inventory` |
+
+`rt_ssh` turns host-key checking **off** by default, because a locked-down
+machine routinely has no `known_hosts` and a first connection would otherwise
+hang. So what it returns is diagnostic evidence, not an authenticated channel:
+never send a secret over one, and set `RT_SSH_STRICT=1` where `known_hosts` is
+provisioned. The runners, `cap_*` and every knob are at
+<https://docs.heliograph.io/runner.md>.
 
 ## Traps that have cost round trips
 

@@ -162,7 +162,7 @@ resource job 'Microsoft.App/jobs@2024-03-01' = {
           // together here, unlike the long-running hosts, which pass no
           // arguments at all in their default configuration. Passing the URL
           // positionally instead avoids that refusal entirely and needs no
-          // new image tag - see references/azure.md for the fix that exists
+          // new image tag - see https://docs.heliograph.io/azure for the fix that exists
           // for this in a newer entrypoint.sh, not yet published, and for
           // the second option (publish first) this template does not take.
           // FOR GIT ONLY. A non-git station has nothing to clone, and the

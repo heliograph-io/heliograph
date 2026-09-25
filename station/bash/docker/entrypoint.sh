@@ -38,7 +38,7 @@
 #  this container exactly as it is on a bare control node - PR 1's cap_git
 #  moved the auth header out of argv for the same reason. Putting the
 #  credential in the URL is the obvious route and it is the one that leaks;
-#  see references/container.md for the full account and the honest limits of
+#  see https://docs.heliograph.io/containers for the full account and the honest limits of
 #  what is closed here versus what Docker itself still exposes. The refusal
 #  also says the part this container cannot do anything about: a URL that got
 #  here on a `docker run` command line has already been in the HOST's process

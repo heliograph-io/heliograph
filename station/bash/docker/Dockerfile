@@ -116,7 +116,7 @@ FROM debian:bookworm-slim
 # freezing this line.
 ENV DEBIAN_FRONTEND=noninteractive
 
-# openssh-client is here because references/transport.md's own stated
+# openssh-client is here because the transports page's own stated
 # preference is SSH with a forwarded agent key ("nothing is stored on the
 # control node and the push needs no credentials of its own"), over HTTPS
 # with a token, which that document treats as the fallback. Shipping an

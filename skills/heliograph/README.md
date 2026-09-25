@@ -55,14 +55,16 @@ run it.
 | | |
 |---|---|
 | [`SKILL.md`](SKILL.md) | the workflow and the hard rules |
-| [`references/method.md`](references/method.md) | how to debug across a gap. The expensive lessons |
-| [`references/steps.md`](references/steps.md) | writing a step, and the traps that cost round trips |
-| [`references/runner.md`](references/runner.md) | every runner, `cap_*` function and knob |
-| [`references/transport.md`](references/transport.md) | how the control node authenticates to the git host |
-| [`references/remote-repo.md`](references/remote-repo.md) | changing a repo that is also on the far side |
+| [`references/method.md`](references/method.md) | how to debug across a gap, and how to change a repo that is also on the far side. The expensive lessons |
+| [`references/steps.md`](references/steps.md) | writing a step, the helpers in `lib/`, and the traps that cost round trips |
 | [`references/secrets.md`](references/secrets.md) | `secret.sh`, for a value that has to reach the far side |
-| [`references/container.md`](references/container.md) | running the control node in a container: what ships, why, and the honest limits |
+| [docs.heliograph.io](https://docs.heliograph.io) | everything else: the CLI, the MCP tools, every transport, the runners and their knobs, hosts, containers, Azure, Windows and running as a service. Every page has a markdown mirror at the same path plus `.md` |
 | [`../../station/bash/`](../../station/) | the payload: `start.sh`, `run.sh`, `station.sh`, `caprun.sh`, `caplib.sh`, `secret.sh`, `lib/`, `steps/`, `docker/`, `azure/` |
+
+Only three references ship with the skill, because they change how an agent
+works rather than describe the code. The rest used to be here as well, and went
+stale beside the site's tested copies of the same pages, so an agent that opened
+one got the older answer. They live on the site now, and nowhere else.
 
 Nothing under `station/bash/` runs from here. It is planted into a transport
 repo and runs on a machine you will never see, in front of someone who cannot

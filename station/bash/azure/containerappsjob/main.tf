@@ -236,7 +236,7 @@ resource "azurerm_container_app_job" "this" {
       # Job's whole point is passing --once - so REPO_URL and an argument
       # are unavoidable together here. Passing the URL positionally instead
       # avoids that refusal entirely and needs no new image tag. See
-      # references/azure.md.
+      # https://docs.heliograph.io/azure.
       # FOR GIT ONLY. A non-git station has nothing to clone, and the
       # entrypoint refuses a repository URL - positional or REPO_URL - beside a
       # non-git TRANSPORT rather than ignoring it. So the URL is simply not

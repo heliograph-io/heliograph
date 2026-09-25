@@ -44,6 +44,65 @@ and `GIT_TOKEN_USER=x-access-token` for GitHub.
 
 Use the pipeline's secret store. Do not put it in the YAML.
 
+## What the first Azure DevOps run cost
+
+Four things, in the order they bite. Each looked like a different problem than
+it was, which is what made them expensive.
+
+**A new pipeline is not authorised for the pool or the repo, and the symptom is
+indistinguishable from an outage.** The run sits at `notStarted`. It never
+appears in the pool's job request list, so no build agent is ever asked for -
+and if the pool scales on demand, you will find every agent `offline` and
+conclude the pool is dead. It is not. The evidence is in the build's own
+timeline:
+
+```
+Checkpoint.Authorization   state=inProgress
+Job                        (absent - nothing dispatched)
+```
+
+Queue the pipeline once from the web UI and click **Authorize** on the banner it
+shows, or grant it directly. The `queue` resource is the agent pool; do the
+repository too, or the checkout fails next:
+
+```
+PATCH https://dev.azure.com/{org}/{projectId}/_apis/pipelines/pipelinePermissions/queue/{queueId}?api-version=7.1-preview.1
+PATCH .../pipelinePermissions/repository/{projectId}.{repoId}?api-version=7.1-preview.1
+{"pipelines":[{"id":<definitionId>,"authorized":true}]}
+```
+
+Once authorised, the wait was seconds, not minutes.
+
+**The build service needs Contribute on the transport repo, and finding its
+identity is its own trap.** Without it the run looks clean and no log arrives -
+`start.sh`'s preflight catches this as a failing `git write` check. Granting it
+needs a *subject descriptor*, and `az devops security permission update` rejects
+both the display name and the `Microsoft.TeamFoundation.ServiceIdentity;...`
+form with errors that name neither problem. Only the Graph `svc.*` descriptor
+works. Read it from the identity itself:
+
+```
+GET https://vssps.dev.azure.com/{org}/_apis/identities?searchFilter=DisplayName&filterValue={Project}%20Build%20Service%20({Org})&api-version=7.1-preview.1
+```
+
+then pass its `subjectDescriptor` as `--subject`, with `--allow-bit 6` (2 Read +
+4 Contribute) on namespace `2e9eb7ed-3c0a-47d4-87c1-0ffdd275fd87` and token
+`repoV2/{projectId}/{repoId}`.
+
+**The checkout is a detached HEAD.** Azure DevOps checks out a commit, not a
+branch, and `station.sh` refuses to start on one - correctly, because a commit
+on a detached HEAD goes nowhere and the log would be destroyed with the
+workspace. The shipped definition re-attaches with
+`git checkout -B "${BUILD_SOURCEBRANCH#refs/heads/}"` before anything else.
+
+**`$(...)` in an inline script is Azure DevOps macro syntax**, expanded before
+bash sees the line. Use `${VAR}` for shell variables.
+
+And one that wastes an afternoon otherwise: `az pipelines create` sets a
+definition-level default queue, and it may pick a pool retired years ago. That
+is **not** what routes the job. The `pool:` in the YAML wins. So if a run will
+not start, read the timeline for a checkpoint before touching the queue.
+
 ## Do not run it as root
 
 Most container-based agents run as root by default, and the runners refuse

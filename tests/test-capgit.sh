@@ -213,8 +213,8 @@ fi
 
 # --- cap_push's failure text has to work for someone with only this repo -------
 # It ended on "see 'Pushing' in RUNNER.md". No such file ships: the transport repo
-# is scripts and no documentation at all, and references/runner.md lives in the
-# skill repo the operator does not have. That text is printed at the one moment it
+# is scripts and no documentation at all, and the runner's documentation is on
+# a website the operator's machine may not reach. That text is printed at the one moment it
 # matters most - the push has just failed and the log is stranded on a machine
 # nobody can reach - so it has to name the next command, not a document.
 mkdir -p "$TMP/pushfail" && ( cd "$TMP/pushfail" && git init -q \

@@ -316,7 +316,7 @@ credential_check() {
       return 1 ;;
     none)
       warn "no credential found at all. The loop will start and be unable to push."
-      warn "  See references/transport.md, then re-run this."
+      warn "  See https://docs.heliograph.io/transports#the-credential, then re-run this."
       return 1 ;;
     unreadable:*)
       warn "a credential exists at ${src#unreadable:} but is not readable by $(id -un)."

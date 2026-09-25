@@ -12,7 +12,7 @@ Notes, findings files and remembered conclusions describe a system that existed 
 written. Environments move: someone patched a host, a token expired, a firewall rule landed, a
 tool floated a major version.
 
-Start every investigation by measuring the current state - that is what `./run.sh env` is for.
+Start every investigation by measuring the current state - that is what the `env` step is for.
 A prior finding is a hypothesis to re-test, never a premise to build on.
 
 Four dead ends in one afternoon have been spent on this exact mistake.
@@ -117,7 +117,7 @@ Bind each runner to its own branches, so they read different copies of
 
 ```
 main, pipeline/*  ->  the build agent   (trigger.branches.include)
-vm/*              ->  the VM agent      (./start.sh --branch vm/<slug>)
+vm/*              ->  the VM station    (./start.sh --branch vm/<slug>)
 ```
 
 Do not bind `task/*` to a runner. It is the branch name this documentation uses
@@ -131,16 +131,114 @@ answer.
 
 ---
 
-Three more rules apply once the branch carries a *change* and not only a
-question - repair rather than skip, scope an edit by structure rather than by
-name, and read the target's current config before designing against it. They are
-in [remote-repo.md](remote-repo.md), with the failures that taught them.
+## When the branch carries a change, not only a question
+
+Sometimes the repo that has to *change* is on the far side of the gap too. A
+separate estate often lives on a git server you cannot reach from where you are
+authoring: you cannot clone it, grep it, or read its config. Only the machine
+the operator reaches can. This is the standing case for production and
+pre-production estates kept deliberately separate from the one you develop in.
+
+That does not change the loop. It means the branch carries the change as well
+as the question, and five more rules apply.
+
+### 13. Measure the target before you write a line of the change
+
+The temptation is to copy the working definition from the sibling estate and
+rename one environment to another. Do not. Resource-group keys, subnet keys,
+secret names, module refs and the slice layout are all local conventions, and a
+definition built on assumed ones fails at plan time at best, or applies something
+subtly wrong at worst.
+
+The first step of this kind of task is always a **discovery** step, and it should
+answer *everything* needed to author the change. One round trip is expensive.
+
+A discovery step should:
+
+- **Find the checkout, do not assume its path.** Search a set of roots, then
+  identify each candidate by `git remote -v`. A directory named `infra` may be
+  the repo you want under a different local name, and the remote is the only
+  thing that proves it.
+- **Print the wiring, not just the tree.** The config file, the dependency-key
+  map, the root configuration, the branch and head commit. Those are what the
+  change has to agree with.
+- **Prove the toolchain and the module source.** Versions, cloud auth, and
+  whether the private registry actually resolves from that machine. A plan that
+  cannot fetch modules fails for a reason that has nothing to do with your
+  Terraform.
+- **Name secrets, never read them.** Listing secret *names* settles "does this
+  exist here". The value is never in question and must never reach a log.
+
+### 14. Read the sibling estate's current config before designing
+
+Two decisions have been re-litigated from first principles that another estate
+had already made and written down, including a provider-version trap with its
+reasoning in a comment. One of them led to cutting a version tag in a shared
+module registry to work around a problem that had already been decided against.
+
+`git show origin/main:<path>` costs nothing. Do it before designing, not after
+committing.
+
+### 15. Deliver the change as a payload, not as instructions
+
+Put the new file under `payload/` on the task branch and write a step that copies
+it into place and runs the plan. Commit both and `heliograph send` the step: the
+operator types nothing new.
+
+**Never send them a patch to apply by hand.** An unlogged manual edit is exactly
+the divergence these logs exist to rule out.
+
+Sequence it so nothing changes state before the evidence justifies it:
+
+| step | does | gate |
+|---|---|---|
+| `discover` | reads the target repo and estate | read-only |
+| `plan` | copies the payload in, then plans | read-only against the estate; prints a diff of what it copied |
+| `apply` | the real change | `action`: `CONFIRM=yes`, `--mode action` on the send, and a station started with `--allow-actions` |
+
+A `plan` step still writes files into the *other* repo, so it must say so at the
+top, show the diff it caused, and be re-runnable. Leave the target repo's working
+tree obviously dirty rather than committing on the operator's behalf: what gets
+committed there is a human decision, and the log is the evidence for making it.
+
+`lib/tfguard.sh` carries two guard rails that exist because the same mistakes
+recur, and the reasoning generalises past Terraform:
+
+- **A "refresh the dependency" flag is rarely only that.** `terraform init
+  -upgrade` re-resolves *providers* to latest, ignoring the lock file, and the
+  resulting errors point at files nobody edited. A changed module ref is
+  re-fetched by a plain init anyway.
+- **A lock file committed in the target repo is not yours to move.** Restoring
+  one something else has modified is undoing damage, not tidying, and it has to
+  happen *before* the tool runs.
+
+### 16. A guard that can only skip preserves a broken state
+
+Guards get written to be idempotent: "if the key is already there, skip". That
+is right until the thing already there is wrong. An entry inserted without a
+required field passed the "is it present?" test on every later run and would
+have stayed broken indefinitely.
+
+Make a guard able to repair, not just abstain, and have it report which it did.
+"SKIP, already correct" and "repaired the existing entry" are different facts.
+
+### 17. Scope an edit to a shared file by structure, not by name
+
+Key names repeat across sections. An edit matching `^  <key>:` anywhere in a
+config file commented out live entries in three different top-level blocks
+because the same name existed under each. The output said so, and that was read
+as noise rather than as the symptom it was.
+
+Track the block you are in. And print the resulting diff, not a summary line: a
+count of what changed cannot show you that it changed the wrong thing.
+
+---
 
 ## The loop, in practice
 
 1. Write the question in `TASK.md`. One question.
 2. Write the step that answers it - with a control in the same run.
-3. Set `DEFAULT_STEP`, push, ask for a run.
+3. Commit it and `heliograph send` it.
 4. Read the whole log. Record what was *measured*.
 5. Only then form the next hypothesis.
 

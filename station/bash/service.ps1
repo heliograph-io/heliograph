@@ -164,7 +164,7 @@ function Test-Credential {
         return $false
     }
     Write-Warning "no credential found at all. The loop will start and be unable to push."
-    Write-Warning "  See references/transport.md, then run this again."
+    Write-Warning "  See https://docs.heliograph.io/transports#the-credential, then run this again."
     return $false
 }
 

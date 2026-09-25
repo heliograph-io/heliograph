@@ -298,7 +298,7 @@ assert_eq "git defines tp_sync, so the payload is still brought up to date befor
 # path, and neither line goes down it.
 #
 # git's returned `git remote get-url origin` verbatim, and
-# `https://ci-user:glpat-...@host/repo` is a shape references/transport.md tells
+# `https://ci-user:glpat-...@host/repo` is a shape the transports page tells
 # people they will meet. So every station using that form printed its own token
 # on its first line of output, once per restart, into a log somebody keeps.
 DESC="$(

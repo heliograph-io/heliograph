@@ -14,8 +14,14 @@
 # neither, so it is the step that gets skipped.
 #
 # It also checks the shape of the manifest itself, because "validated" is a
-# claim references/hosts.md makes on its behalf and a claim nobody re-checks is
-# a hope.
+# claim the hosts page makes on its behalf and a claim nobody re-checks is a
+# hope.
+#
+# THE PAGE IS THE SITE'S. It was skills/heliograph/references/hosts.md, with a
+# second, looser copy on the site. The two disagreed - about how many things a
+# host needs, about which hosts were listed at all, and about the evidence -
+# and only the skill's copy was tested. The skill now links the site, so the
+# site's page is the one copy, and this is what holds it to the tree.
 #
 # WHAT THIS CANNOT DO, stated so nobody trusts it further than it goes. It
 # cannot tell whether a host was really deployed. A row moved from validated to
@@ -33,16 +39,16 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/assert.sh"
 
 SKILL_DIR="$HERE/../skills/heliograph"
-HOSTS="$SKILL_DIR/references/hosts.md"
+HOSTS="$HERE/../site/content/hosts.md"
 TOOLKIT="$HERE/../station/bash"
 K8S="$TOOLKIT/kubernetes/heliograph.yaml"
 
 if [ ! -f "$HOSTS" ]; then
-  t_no "references/hosts.md exists"
+  t_no "site/content/hosts.md exists"
   t_summary
   exit 1
 fi
-t_ok "references/hosts.md exists"
+t_ok "site/content/hosts.md exists"
 
 # --- every host template is in the table -------------------------------------
 # DISCOVERED, not listed. The first version of this iterated a hardcoded list,
@@ -74,9 +80,9 @@ for host in $hosts; do
   # better naming `toolkit/docker/` than the full path twice.
   leaf="$(basename "$host")"
   if grep -qi -- "$leaf" "$HOSTS"; then
-    t_ok "$host has a row in references/hosts.md"
+    t_ok "$host has a row in the hosts page"
   else
-    t_no "$host has a row in references/hosts.md"
+    t_no "$host has a row in the hosts page"
     printf '     a template nobody documents is one somebody deploys blind\n'
   fi
 done
@@ -246,10 +252,10 @@ fi
 # An unlinked reference is one nobody is routed to, which goes stale silently
 # while still looking authoritative when somebody finally opens it. This is the
 # same rule test-doc-coherence.sh applies to every other reference.
-if grep -q "references/hosts.md" "$SKILL_DIR/SKILL.md"; then
-  t_ok "SKILL.md links references/hosts.md"
+if grep -q "https://docs.heliograph.io/hosts" "$SKILL_DIR/SKILL.md"; then
+  t_ok "SKILL.md links the hosts page on docs.heliograph.io"
 else
-  t_no "SKILL.md links references/hosts.md"
+  t_no "SKILL.md links the hosts page on docs.heliograph.io"
 fi
 
 t_summary
