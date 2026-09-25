@@ -40,13 +40,49 @@ the exact station payload the binary was built with. Check for it first:
 command -v heliograph >/dev/null || echo "MISSING"
 ```
 
-**If it is missing, install it and do not improvise around it:**
+**If it is missing, install it and do not improvise around it.** This picks
+the release binary for this OS and CPU, checks it against the release's
+`SHA256SUMS`, and installs nothing if the two disagree:
 
 ```bash
-curl -sSL https://github.com/heliograph-io/heliograph/releases/latest/download/heliograph-linux-amd64 \
-  -o /usr/local/bin/heliograph && chmod +x /usr/local/bin/heliograph
-# or: go install github.com/heliograph-io/heliograph/cmd/heliograph@latest
+(
+  set -eu
+  case "$(uname -s)" in
+    Linux) os=linux ext="" ;;
+    Darwin) os=darwin ext="" ;;
+    MINGW* | MSYS* | CYGWIN*) os=windows ext=.exe ;;
+    *) echo "no release binary for $(uname -s): use go install" >&2; exit 1 ;;
+  esac
+  case "$(uname -m)" in
+    x86_64 | amd64) arch=amd64 ;;
+    arm64 | aarch64) arch=arm64 ;;
+    *) echo "no release binary for $(uname -m): use go install" >&2; exit 1 ;;
+  esac
+  asset="heliograph-$os-$arch$ext"
+  url="https://github.com/heliograph-io/heliograph/releases/latest/download"
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' EXIT
+  curl -fsSL "$url/$asset" -o "$tmp/$asset"
+  curl -fsSL "$url/SHA256SUMS" -o "$tmp/SHA256SUMS"
+  want="$(awk -v f="$asset" '$2 == f { print $1 }' "$tmp/SHA256SUMS")"
+  got="$( (sha256sum "$tmp/$asset" 2>/dev/null || shasum -a 256 "$tmp/$asset") | awk '{ print $1 }')"
+  if [ -z "$want" ] || [ "$want" != "$got" ]; then
+    echo "$asset does not match SHA256SUMS: not installed" >&2
+    exit 1
+  fi
+  mkdir -p "$HOME/.local/bin"
+  chmod +x "$tmp/$asset"
+  mv "$tmp/$asset" "$HOME/.local/bin/heliograph$ext"
+  echo "installed $asset as ~/.local/bin/heliograph$ext"
+)
 ```
+
+It installs into `~/.local/bin`, which needs no root. If `command -v
+heliograph` still finds nothing, that directory is not on `PATH`: run
+`export PATH="$HOME/.local/bin:$PATH"`. A checksum refusal is a finding, not
+a hiccup: stop and say so rather than fetch the file another way. With no
+release for the platform, or with Go to hand, build it instead:
+`go install github.com/heliograph-io/heliograph/cmd/heliograph@latest`.
 
 If you cannot install it (no network, no permission), stop and say so. The
 no-CLI fallback is a procedure for a person, not for you: clone

@@ -135,6 +135,34 @@ jobs:
           if [ -n "$found" ]; then echo "::error::dangling symlinks:"; echo "$found"; exit 1; fi
           echo "No dangling symlinks."
 
+  # SKILL.md's install command is run verbatim by an agent, on whatever machine
+  # it happens to be on. It used to fetch heliograph-linux-amd64 everywhere,
+  # which installs and chmods perfectly on an Apple Silicon Mac and then fails
+  # with "exec format error". Only running it on the other platform shows that,
+  # so it is run on each, against the real latest release, and the binary it
+  # installed has to run. The offline half (every platform faked, checksums
+  # that do and do not match) is in the `tests` job; it runs here on macOS too,
+  # because that is where `shasum` stands in for `sha256sum`.
+  binary-install:
+    name: The skill's install command installs a binary that runs (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Offline, against fixtures, on macOS
+        if: runner.os == 'macOS'
+        run: ./tests/test-skill-install.sh
+
+      - name: The real release, and the installed binary runs
+        run: ./tests/test-skill-install.sh --live
+
   station:
     name: The station captures a run
     runs-on: ubuntu-latest
@@ -1076,6 +1104,7 @@ jobs:
     needs:
       - validate
       - installers
+      - binary-install
       - station
       - tests
       - container
