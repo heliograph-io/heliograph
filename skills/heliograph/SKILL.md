@@ -228,8 +228,12 @@ discipline (two writers share the branch, and the station pushes far more
 often than you do), inventing request ids, and the timestamp arithmetic.
 
 The trigger is the **id**, not a new commit, so docs and step edits never fire
-runs nobody asked for. A new `send` while a step runs **queues**; it does not
-cancel. To kill the running step, set `cancel: yes` in `station/request` (or
+runs nobody asked for. The station holds **one request, not a queue**. A new
+`send` while a step runs does not cancel it: the new request runs when that
+step ends. But a second `send` before the station has read the first replaces
+it, and the first never runs - `send` names the request it replaced when that
+happens. Send the next once `watch` shows the last one picked up.
+To kill the running step, set `cancel: yes` in `station/request` (or
 `cancel: <id>` to kill only that id), commit and push - the station stays
 responsive while a step runs. `stop: yes` ends the loop from your side, which
 matters because nobody is sitting at that terminal.

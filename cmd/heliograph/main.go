@@ -876,7 +876,8 @@ func cmdSend(args []string) error {
 	if err2 != nil {
 		return err2
 	}
-	if err := refuseIfStationElsewhere(op); err != nil {
+	replacing, err := beforeSend(op)
+	if err != nil {
 		return err
 	}
 	req, err := newRequest(op, step, env, *note, *mode, *expires)
@@ -892,6 +893,9 @@ func cmdSend(args []string) error {
 		fmt.Fprintf(os.Stderr, "heliograph: sent, but could not record the id for `watch`: %v\n", err)
 	}
 	fmt.Printf("sent %s\n", req.ID)
+	if replacing != "" {
+		fmt.Printf("  %s\n", replacedLine(replacing))
+	}
 	fmt.Printf("  step: %s\n", step)
 	if req.Env != "" {
 		fmt.Printf("  env:  %s\n", req.Env)
@@ -1167,18 +1171,49 @@ func stationElsewhereRemedy(op opened, s wire.Status) string {
 		"  or point this estate at %s", op.Scope, s.Branch)
 }
 
-// refuseIfStationElsewhere is the check `send` and heliograph_send both make
-// before publishing. A status that cannot be read is not a refusal: the send
-// itself reports the transport's error, as it always has.
-func refuseIfStationElsewhere(op opened) error {
+// beforeSend is what `send` and heliograph_send both check before publishing,
+// from one read of the status. It refuses a branch no station reads, and it
+// returns the id of an earlier request from here that the station has not read
+// yet, which this send is about to replace. A status that cannot be read is
+// neither: the send itself reports the transport's error, as it always has.
+func beforeSend(op opened) (replacing string, err error) {
 	s, err := op.FetchStatus()
 	if err != nil {
-		return nil
+		return "", nil
 	}
 	if msg := stationElsewhere(op, s); msg != "" {
-		return fmt.Errorf("not sent: %s.\n%s", msg, stationElsewhereRemedy(op, s))
+		return "", fmt.Errorf("not sent: %s.\n%s", msg, stationElsewhereRemedy(op, s))
 	}
-	return nil
+	return unrunRequest(op.Estate.Name, s), nil
+}
+
+// unrunRequest is the id of the last request sent from here, when the station
+// has not read it. "" when it has, or when nothing was sent from here.
+//
+// ONE SLOT, NOT A QUEUE. Every transport holds one request and the newest wins:
+// git and the share overwrite a file, and a relay station runs the newest
+// message it collects. So a send before the station has read the previous one
+// replaces it, and the previous one never runs. SKILL.md said a new send
+// "queues", and an agent that sent two steps in a row believed both had run.
+//
+// Only requests sent FROM HERE, because that is all this machine records. A
+// request somebody else sent is invisible to this check.
+func unrunRequest(estateName string, s wire.Status) string {
+	want, _ := estate.LastSent(estateName)
+	if want == "" {
+		return ""
+	}
+	if msg, moved := notPickedUp(s, want); msg == "" || moved {
+		return ""
+	}
+	return want
+}
+
+// replacedLine says what a send just replaced, in the words both `send` and
+// heliograph_send use.
+func replacedLine(id string) string {
+	return fmt.Sprintf("replaced unrun request %s: the station had not read it, and now it will not run. "+
+		"The station holds one request, not a queue: send the next once this one has been picked up", id)
 }
 
 // cmdWatch follows a run to its end.
