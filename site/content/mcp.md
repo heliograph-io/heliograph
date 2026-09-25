@@ -52,6 +52,11 @@ tools can reach it.
 | `heliograph_gaps` | where a run stalled, longest interval first |
 | `heliograph_doctor` | will this work from here, changing nothing |
 
+`heliograph_send` builds its request with the same code as `heliograph send`.
+It names the station it was written for, expires after 24 hours unless you pass
+`expires` (`"0"` for never), and takes the optional `mode` the step must
+declare. A request an agent sends is bound exactly as one typed at the CLI.
+
 ## Why tools and not just the skill
 
 The [skill](claude-code.md) teaches an agent to run the CLI, and that works.

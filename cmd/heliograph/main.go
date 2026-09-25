@@ -792,24 +792,57 @@ func cmdEstates() error {
 	return nil
 }
 
+// defaultExpiry is how long a request stays valid unless the sender says
+// otherwise, and 24 hours is a decision worth stating.
+//
+// Without one, a request lifted out of a transport repo is valid for ever -
+// and `--allow-actions` and `CONFIRM=yes` were decided days before it, so a
+// replayed request is a destructive step running again with every gate
+// already satisfied. A day is long enough for a station that is down when
+// the request is sent and comes back the same working day, which is the case
+// people actually hit; anything longer stops being a bound.
+//
+// An expiry of 0 turns it off, for an estate that plants a station a week
+// after writing the request. That is a real workflow, so it has a flag
+// rather than being impossible.
+const defaultExpiry = 24 * time.Hour
+
+// newRequest builds the request `send` and heliograph_send publish. ONE
+// BUILDER, because there were two: the MCP tool assembled its own and left out
+// the target, the expiry and the mode, and skipped Validate. So a request an
+// agent sent was valid for ever and bound to no station - the replay the CLI's
+// defaults exist to prevent - and nothing said so, because both requests ran.
+func newRequest(op opened, step string, env []string, note, mode string, expires time.Duration) (wire.Request, error) {
+	req := wire.Request{
+		Version: wire.Version,
+		ID:      wire.NewID(step, time.Now()),
+		Step:    step,
+		Env:     strings.Join(env, " "),
+		Note:    note,
+		Mode:    mode,
+		// THE STATION THIS WAS WRITTEN FOR, always. A request lifted out of one
+		// transport repo and put into another used to run there: the relay binds
+		// estate and station inside its envelope, and no other transport bound
+		// anything at all. A station refuses a target that is not its own scope,
+		// and ignores the key entirely if it predates this - so setting it costs
+		// nothing and closes the gap wherever the far side is current.
+		Target: op.Scope,
+	}
+	if expires < 0 {
+		return wire.Request{}, fmt.Errorf("an expiry of %s is already in the past: use 0 for no expiry", expires)
+	}
+	if expires > 0 {
+		req.Expires = time.Now().UTC().Add(expires).Format(time.RFC3339)
+	}
+	return req, req.Validate()
+}
+
 func cmdSend(args []string) error {
 	fs := flag.NewFlagSet("send", flag.ExitOnError)
 	name := estateFlag(fs)
 	note := fs.String("note", "", "free text for the next human")
 	mode := fs.String("mode", "", "the mode you expect the step to declare: read-only or action")
-	// AN EXPIRY BY DEFAULT, and 24 hours is a decision worth stating.
-	//
-	// Without one, a request lifted out of a transport repo is valid for ever -
-	// and `--allow-actions` and `CONFIRM=yes` were decided days before it, so a
-	// replayed request is a destructive step running again with every gate
-	// already satisfied. A day is long enough for a station that is down when
-	// the request is sent and comes back the same working day, which is the case
-	// people actually hit; anything longer stops being a bound.
-	//
-	// `--expires 0` turns it off, for an estate that plants a station a week
-	// after writing the request. That is a real workflow, so it has a flag
-	// rather than being impossible.
-	expires := fs.Duration("expires", 24*time.Hour, "how long this request stays valid; 0 for no expiry")
+	expires := fs.Duration("expires", defaultExpiry, "how long this request stays valid; 0 for no expiry")
 	pos, err := parse(fs, args)
 	if err != nil {
 		return err
@@ -833,25 +866,8 @@ func cmdSend(args []string) error {
 	if err2 != nil {
 		return err2
 	}
-	req := wire.Request{
-		Version: wire.Version,
-		ID:      wire.NewID(step, time.Now()),
-		Step:    step,
-		Env:     strings.Join(env, " "),
-		Note:    *note,
-		Mode:    *mode,
-		// THE STATION THIS WAS WRITTEN FOR, always. A request lifted out of one
-		// transport repo and put into another used to run there: the relay binds
-		// estate and station inside its envelope, and no other transport bound
-		// anything at all. A station refuses a target that is not its own scope,
-		// and ignores the key entirely if it predates this - so setting it costs
-		// nothing and closes the gap wherever the far side is current.
-		Target: op.Scope,
-	}
-	if *expires > 0 {
-		req.Expires = time.Now().UTC().Add(*expires).Format(time.RFC3339)
-	}
-	if err := req.Validate(); err != nil {
+	req, err := newRequest(op, step, env, *note, *mode, *expires)
+	if err != nil {
 		return err
 	}
 	if err := op.PutRequest(req); err != nil {
