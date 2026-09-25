@@ -1,12 +1,11 @@
 #!/bin/bash
 # Install the heliograph skill into ~/.claude/skills/ as a live symlink install.
 #
-# SKILL.md references scripts via ${CLAUDE_SKILL_DIR}, which Claude Code
-# substitutes to the skill's own directory for personal, project, and plugin
-# installs alike. So this script symlinks the whole skill directory into
+# The skill carries SKILL.md and references/, and drives the heliograph CLI
+# for everything else. So this script symlinks the whole skill directory into
 # ~/.claude/skills/ - every edit (SKILL.md and references/) is immediately
-# live, with no per-file rewrite. Re-run only when you
-# add a new skill directory.
+# live, with no per-file rewrite. Re-run only when you add a new skill
+# directory.
 
 set -e
 
@@ -31,7 +30,7 @@ for src in "$SCRIPT_DIR"/skills/*/; do
   target="$SKILLS_ROOT/$name"
   echo "Installing '$name' -> $target"
   rm -rf "$target"            # replace any prior copy or partial-symlink install
-  ln -sfn "$src" "$target"    # whole-directory symlink; ${CLAUDE_SKILL_DIR} resolves it
+  ln -sfn "$src" "$target"    # whole-directory symlink, so edits are live
 done
 
 echo

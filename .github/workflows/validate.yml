@@ -1,4 +1,4 @@
-name: validate
+name: Validate
 
 on:
   push:
@@ -9,6 +9,16 @@ permissions:
   contents: read
 
 jobs:
+  # THE ESTATE FLOOR, defined once in dbhq-uk/.github (dbhq-uk/.github#4), the
+  # same call every DBHQ skill repository makes: SKILL.md frontmatter parses
+  # as YAML and names its directory, plugin.json parses and carries no
+  # version, skill paths are braced, every shell script passes bash -n and
+  # shellcheck, ruff E9,F over the Python, and no em or en dashes in markdown.
+  # The ruff step is the one this repository did not have: it found two
+  # unused imports in the Azure Function. Pinned by SHA; Dependabot moves it.
+  floor:
+    uses: dbhq-uk/.github/.github/workflows/skill-floor.yml@af131df509f44eb9abfe8b37ad6299c11f496c5f # skill-floor-v1.0.0
+
   go:
     name: Go builds, vets and tests
     runs-on: ubuntu-latest
