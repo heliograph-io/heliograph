@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -211,20 +212,36 @@ func TestManifestToolsMatchTheServer(t *testing.T) {
 		}
 		seen[n] = true
 	}
-	// The seven the MCP server actually registers. Named rather than counted,
-	// because a count is satisfied by the wrong seven.
-	for _, n := range []string{
-		"heliograph_estates", "heliograph_send", "heliograph_status",
-		"heliograph_logs", "heliograph_read_log", "heliograph_gaps", "heliograph_doctor",
-	} {
+	// The tools the MCP server actually registers, read from the source that
+	// registers them. This was a list of seven typed here, and it stayed
+	// seven when the server gained heliograph_cancel and heliograph_stop, so
+	// the bundle hid two tools and the test still passed. This package cannot
+	// import package main, so the names are read the way test-doc-coherence.sh
+	// reads them.
+	src, err := os.ReadFile("../cmd/heliograph/mcptools.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := map[string]bool{}
+	for _, m := range registered.FindAllStringSubmatch(string(src), -1) {
+		server[m[1]] = true
+	}
+	if len(server) == 0 {
+		t.Fatal("no tool names found in mcptools.go, so this checked nothing")
+	}
+	for n := range server {
 		if !seen[n] {
 			t.Errorf("the manifest does not advertise %s, which the server provides", n)
 		}
 	}
-	if len(seen) != 7 {
-		t.Errorf("the manifest advertises %d tools; the server provides 7", len(seen))
+	for n := range seen {
+		if !server[n] {
+			t.Errorf("the manifest advertises %s, which the server does not provide", n)
+		}
 	}
 }
+
+var registered = regexp.MustCompile(`Name:\s*"(heliograph_[a-z_]+)"`)
 
 // The registry rejects a description over 100 characters, and it rejects it at
 // publish time: the file validates locally, the schema says nothing, and the

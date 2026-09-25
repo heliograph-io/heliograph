@@ -46,6 +46,14 @@
       "description": "What the station is doing now"
     },
     {
+      "name": "heliograph_cancel",
+      "description": "Kill the running step, on a git or file-share station"
+    },
+    {
+      "name": "heliograph_stop",
+      "description": "End the station's loop once the current run is over"
+    },
+    {
       "name": "heliograph_logs",
       "description": "The captured logs, newest first"
     },
