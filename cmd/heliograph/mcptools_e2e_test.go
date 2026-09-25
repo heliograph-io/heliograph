@@ -455,3 +455,29 @@ func TestCLIAndMCPSendTheSameRequest(t *testing.T) {
 		t.Error("a numeric expires was accepted; 0 would have silently meant a day")
 	}
 }
+
+// heliograph_send makes the refusal `heliograph send` makes. A status that names
+// another scope means no station has published from this one, and a request
+// sent there is never picked up.
+func TestSendToolRefusesAScopeNoStationReads(t *testing.T) {
+	share := estateOnDisk(t)
+	d := scopeDir(t, share)
+	write(t, filepath.Join(d, "status"), "state:    idle\nid:       20260901T000000Z-env\nbranch:   elsewhere\n")
+
+	out, err := call(t, "heliograph_send", map[string]any{"step": "env"})
+	if err == nil {
+		t.Fatalf("the tool published to a scope whose status names another:\n%s", out)
+	}
+	if !strings.Contains(err.Error(), `"elsewhere"`) || !strings.Contains(err.Error(), `"probe"`) {
+		t.Errorf("the refusal does not name both scopes: %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(d, "request")); statErr == nil {
+		t.Error("the refused request was written anyway")
+	}
+
+	// Its own scope, and the same call goes through.
+	write(t, filepath.Join(d, "status"), "state:    idle\nid:       20260901T000000Z-env\nbranch:   probe\n")
+	if _, err := call(t, "heliograph_send", map[string]any{"step": "env"}); err != nil {
+		t.Errorf("the tool refused a scope whose status is its own: %v", err)
+	}
+}

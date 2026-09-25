@@ -110,6 +110,11 @@ func tools() []mcp.Tool {
 			if err != nil {
 				return "", err
 			}
+			// The same refusal `heliograph send` makes: a request on a branch no
+			// station reads is never picked up, and nothing would say so.
+			if err := refuseIfStationElsewhere(o); err != nil {
+				return "", err
+			}
 			// Sorted, so the same call twice produces the same request rather
 			// than one that differs only in map order.
 			env := mcp.StrMap(a, "env")

@@ -987,4 +987,42 @@ SHARED_OUT="$( "$PS_BIN" -NoProfile -File "$SHARED" 2>&1 | tr -d '\r' | tail -1 
 assert_eq "a log held open by the capture can still be read and copied" \
   "OK 2 nonempty" "$SHARED_OUT"
 
+
+# =============================================================================
+#  A station on a branch cut from another claims it
+# =============================================================================
+# A branch cut from another carries that branch's station/status, which names
+# the other branch, and the control side refuses to send to a branch whose
+# status names a different one. So a station started there publishes its own at
+# once - and only then, or every restart would overwrite the last run's exit
+# and log. Over git, the one transport with branches. station.sh does the same.
+plant
+CO="$WORK/claim-origin.git"
+CG=(git -c user.email=ci@example.invalid -c user.name=ci)
+mv "$D/gitignore" "$D/.gitignore" 2>/dev/null
+mv "$D/gitattributes" "$D/.gitattributes" 2>/dev/null
+git init -q --bare "$CO"
+( cd "$D" && git init -q -b main && git remote add origin "$CO" && "${CG[@]}" add -A \
+    && "${CG[@]}" commit -qm init && git push -q -u origin main ) >/dev/null 2>&1
+printf 'state:    idle\nid:       m1\nstep:     env\nbranch:   main\n' > "$D/station/status"
+( cd "$D" && "${CG[@]}" add -A && "${CG[@]}" commit -qm 'status on main' && git push -q \
+    && git checkout -q -b task/claim && git push -q -u origin task/claim ) >/dev/null 2>&1
+claim_run() {
+  CLAIM_OUT="$(
+    cd "$D" && env GIT_AUTHOR_NAME=ci GIT_AUTHOR_EMAIL=ci@example.invalid \
+      GIT_COMMITTER_NAME=ci GIT_COMMITTER_EMAIL=ci@example.invalid \
+      "${ROOT_ENV[@]+"${ROOT_ENV[@]}"}" \
+      timeout "$1" "$PS_BIN" -NoProfile -File ./station.ps1 --interval 1 2>&1 | tr -d '\r'
+  )"
+}
+claimed() { git -C "$CO" show task/claim:station/status 2>/dev/null | sed -n 's/^branch:[[:space:]]*//p' | head -1; }
+claim_run 40
+assert_contains "a station started there says it is publishing its own status" \
+  "publishing this station's own" "$CLAIM_OUT"
+assert_eq "  and the far side's status now names the branch the station is on" "task/claim" "$(claimed)"
+BEFORE="$(git -C "$CO" rev-parse task/claim)"
+claim_run 20
+assert_eq "  and a restart on a branch whose status is already its own publishes nothing" \
+  "$BEFORE" "$(git -C "$CO" rev-parse task/claim)"
+
 t_summary

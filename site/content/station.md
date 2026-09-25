@@ -161,6 +161,14 @@ reason and stop meaning anything.
 cannot be shipped" and "the step is still running" are the same silence from
 your side, and only one of them is worth waiting on.
 
+Every status also carries `branch:`, the branch the station runs on, and that is
+the one status a git station publishes as soon as it starts, before anybody asks
+it anything - but only when the status it finds names a different branch. A
+branch cut from another carries that branch's status, and the control side
+refuses to send to a branch whose status names a different one, because by that
+status no station reads it. A status that already names this branch is this
+station's last run, and a restart leaves it alone.
+
 ## The action mode it publishes
 
 Every status also carries `actions:`, which is `allowed` or `refused`. It is

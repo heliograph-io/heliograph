@@ -384,4 +384,24 @@ else
     "" "$_psuncovered"
 fi
 
+
+# --- a station on a branch cut from another claims it --------------------------
+# A branch cut from another carries that branch's station/status, which names
+# the other branch. The control side refuses to send to a branch whose status
+# names a different one, because by that status no station reads it. So a
+# station started there publishes its own at once - and only then, or every
+# restart would overwrite the last run's exit and log with a bare `starting`.
+FROM="$(status_field branch)"
+( cd "$TR" && git checkout -q -b task/claim && $GIT push -q -u origin task/claim ) >/dev/null 2>&1
+assert_eq "a branch cut from another starts with that branch's status" "$FROM" "$(status_field branch)"
+claimed() { git -C "$TMP/origin.git" show task/claim:station/status 2>/dev/null | sed -n 's/^branch:[[:space:]]*//p' | head -1; }
+OUT="$( cd "$TR" && timeout 15 ./station.sh --interval 1 2>&1 )"
+assert_contains "a station started there says it is publishing its own status" \
+  "publishing this station's own" "$OUT"
+assert_eq "and the far side's status now names the branch the station is on" "task/claim" "$(claimed)"
+BEFORE="$(git -C "$TMP/origin.git" rev-parse task/claim)"
+OUT="$( cd "$TR" && timeout 10 ./station.sh --interval 1 2>&1 )"
+assert_eq "a restart on a branch whose status is already its own publishes nothing" \
+  "$BEFORE" "$(git -C "$TMP/origin.git" rev-parse task/claim)"
+
 t_summary

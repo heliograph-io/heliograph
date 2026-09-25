@@ -311,6 +311,16 @@ func cmdStationAdd(args []string) error {
 	if err := g.AddWorktree(target, branch); err != nil {
 		return fmt.Errorf("pushed %s but could not check it out: %w", branch, err)
 	}
+	// The new branch starts with the status of the one it was cut from, which
+	// is another machine's. `send` would refuse it, and `doctor` would report
+	// that machine's last run as this station's.
+	nb, err := transport.NewGit(target)
+	if err != nil {
+		return err
+	}
+	if _, err := nb.ForgetInheritedStatus(); err != nil {
+		return err
+	}
 
 	e := estate.Estate{Name: name, Transport: "git", Dir: target, Branch: branch, Scope: branch}
 	if err := e.Save(); err != nil {
@@ -866,6 +876,9 @@ func cmdSend(args []string) error {
 	if err2 != nil {
 		return err2
 	}
+	if err := refuseIfStationElsewhere(op); err != nil {
+		return err
+	}
 	req, err := newRequest(op, step, env, *note, *mode, *expires)
 	if err != nil {
 		return err
@@ -1124,6 +1137,50 @@ func notPickedUp(s wire.Status, want string) (msg string, moved bool) {
 		want, s.State, orDash(s.ID)), false
 }
 
+// stationElsewhere says whether the status this checkout reads was published by
+// a station on some OTHER scope, and if so, what to tell the reader. "" means it
+// was published here, or there is no status to judge by.
+//
+// A TASK BRANCH INHERITS ITS PARENT'S STATUS. `git checkout -b task/x` copies
+// main's station/status, and a station still running on main never reads
+// task/x. So a request sent there waited for nothing, and `watch` and `doctor`
+// read main's last run as this branch's - an old result, reported as the
+// answer. The status already names the scope it was published from, so the
+// mismatch is visible from here without asking anybody.
+func stationElsewhere(op opened, s wire.Status) string {
+	if s.Branch == "" || s.Branch == op.Scope {
+		return ""
+	}
+	return fmt.Sprintf("the station last published from %q, and this estate sends to %q. "+
+		"No station has published from %q, so nothing there reads a request", s.Branch, op.Scope, op.Scope)
+}
+
+// stationElsewhereRemedy is what to do about it, which depends on the transport:
+// only git has a checkout that can have moved.
+func stationElsewhereRemedy(op opened, s wire.Status) string {
+	if _, ok := op.Transport.(*transport.Git); ok {
+		return fmt.Sprintf("  Start the station on %s first: the operator checks it out and restarts the station,\n"+
+			"  and `heliograph plant` prints the commands. Or send from the branch the station is on:\n"+
+			"  git -C %s checkout %s", op.Scope, op.Dir, s.Branch)
+	}
+	return fmt.Sprintf("  The estate's scope and the station's disagree: start the station with scope %s,\n"+
+		"  or point this estate at %s", op.Scope, s.Branch)
+}
+
+// refuseIfStationElsewhere is the check `send` and heliograph_send both make
+// before publishing. A status that cannot be read is not a refusal: the send
+// itself reports the transport's error, as it always has.
+func refuseIfStationElsewhere(op opened) error {
+	s, err := op.FetchStatus()
+	if err != nil {
+		return nil
+	}
+	if msg := stationElsewhere(op, s); msg != "" {
+		return fmt.Errorf("not sent: %s.\n%s", msg, stationElsewhereRemedy(op, s))
+	}
+	return nil
+}
+
 // cmdWatch follows a run to its end.
 //
 // Without this the choice is polling `status` by hand or waiting blind, and
@@ -1170,9 +1227,20 @@ func cmdWatch(args []string) error {
 	if *timeout > 0 {
 		deadline = time.Now().Add(*timeout)
 	}
-	var lastLine string
+	var lastLine, lastElsewhere string
 	for {
 		s, err := op.FetchStatus()
+		if err == nil {
+			// SAID BEFORE ANYTHING ELSE, and again only if it changes. What
+			// follows is a status some other branch's station published, and a
+			// watch that just printed it reads as this request's progress.
+			if msg := stationElsewhere(op, s); msg != lastElsewhere {
+				if msg != "" {
+					fmt.Printf("%s  warning: %s\n%s\n", stamp(), msg, stationElsewhereRemedy(op, s))
+				}
+				lastElsewhere = msg
+			}
+		}
 		if err != nil {
 			// A fetch failure is a blip, not a death. The station's own loop
 			// treats it that way and so does this: reporting and carrying on
@@ -1273,6 +1341,13 @@ func cmdDoctor(args []string) error {
 		// a warning that reads like something is wrong.
 		fmt.Println("note      the station has published no status yet")
 		fmt.Println("          it may not have been started: the operator runs ./start.sh once")
+	case stationElsewhere(op, s) != "":
+		// A FAILURE, not a note: `send` refuses from here, and "the station
+		// last published idle" about another branch's station is the old result
+		// this line used to report as current.
+		problems++
+		fmt.Printf("FAIL      %s\n", stationElsewhere(op, s))
+		fmt.Println(stationElsewhereRemedy(op, s))
 	default:
 		fmt.Printf("ok        the station last published %q", s.State)
 		if s.UTC != "" {
