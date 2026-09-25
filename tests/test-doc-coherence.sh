@@ -249,10 +249,17 @@ done
 # It must NOT restate the CLI's flags. Those live on the site, next to the
 # binary that implements them. This asserts the boundary is where it was put:
 # the site is linked, and the flag tables are not copied back in.
+#
+# docs.heliograph.io, and never heliograph.dbhq.uk. That was the site until
+# 2026-09-16 and its apex now 301s to heliograph.io, the commercial site, so a
+# link to it lands the reader on a product page. This check used to REQUIRE the
+# old name, which made fixing the links fail the build.
 if grep -q "heliograph.dbhq.uk" "$SKILL"; then
-  t_ok "SKILL.md links the site for near-side reference"
+  t_no "SKILL.md links heliograph.dbhq.uk, which redirects to the commercial site: use docs.heliograph.io"
+elif grep -q "https://docs.heliograph.io/" "$SKILL"; then
+  t_ok "SKILL.md links the docs site for near-side reference"
 else
-  t_no "SKILL.md links the site for near-side reference"
+  t_no "SKILL.md links the docs site for near-side reference"
 fi
 
 # `--interval` and `--min` are CLI-only flags with no station-side meaning.

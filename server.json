@@ -7,7 +7,7 @@
     "source": "github"
   },
   "version": "0.4.3",
-  "websiteUrl": "https://heliograph.dbhq.uk",
+  "websiteUrl": "https://docs.heliograph.io",
   "packages": [
     {
       "registryType": "npm",

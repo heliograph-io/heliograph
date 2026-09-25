@@ -245,7 +245,7 @@ func (b *Bundle) PutRequest(r wire.Request) error {
 	// is true now and names the variables rather than a flag.
 	fmt.Println("  carry it across, then on the far side:")
 	fmt.Println("    TRANSPORT=bundle BUNDLE_DIR=<where you mounted it> ./start.sh -- --once")
-	fmt.Println("  and carry the medium back. https://heliograph.dbhq.uk/air-gapped")
+	fmt.Println("  and carry the medium back. https://docs.heliograph.io/air-gapped")
 	return nil
 }
 

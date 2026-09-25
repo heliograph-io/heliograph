@@ -51,7 +51,7 @@
 #    gh release download v0.4.3 -R heliograph-io/heliograph -p SHA256SUMS -O /tmp/published
 #    cd dist && sha256sum --ignore-missing -c /tmp/published
 #
-#  Full account: https://heliograph.dbhq.uk/provenance
+#  Full account: https://docs.heliograph.io/provenance
 # =============================================================================
 set -euo pipefail
 

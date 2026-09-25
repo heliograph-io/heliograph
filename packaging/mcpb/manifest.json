@@ -10,8 +10,8 @@
     "name": "DBHQ",
     "url": "https://dbhq.uk"
   },
-  "homepage": "https://heliograph.dbhq.uk",
-  "documentation": "https://heliograph.dbhq.uk/mcp",
+  "homepage": "https://docs.heliograph.io",
+  "documentation": "https://docs.heliograph.io/mcp",
   "support": "https://github.com/heliograph-io/heliograph/issues",
   "license": "Apache-2.0",
   "keywords": [

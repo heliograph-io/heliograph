@@ -157,7 +157,7 @@ Git is the default. A mounted file share, a signed bundle for a true air gap,
 an S3-compatible object store and the relay are all available at `init`, and
 the loop is identical whichever you pick. Which flags each needs is on the
 site, next to the binary that implements them:
-<https://heliograph.dbhq.uk/transports>.
+<https://docs.heliograph.io/transports>.
 
 ## 2. Baseline before theorising
 
@@ -373,9 +373,9 @@ better than two:
 
 | | |
 |---|---|
-| <https://heliograph.dbhq.uk/cli> | every CLI command, and the reasoning behind the ones that are not obvious |
-| <https://heliograph.dbhq.uk/mcp> | the MCP tools, for driving this from an agent |
-| <https://heliograph.dbhq.uk/transports> | git, file share, bundle, object store, relay |
+| <https://docs.heliograph.io/cli> | every CLI command, and the reasoning behind the ones that are not obvious |
+| <https://docs.heliograph.io/mcp> | the MCP tools, for driving this from an agent |
+| <https://docs.heliograph.io/transports> | git, file share, bundle, object store, relay |
 
 The far side is on the web too, for the same reason. The site is tested
 against this repository, and a second copy here went stale beside it. Fetch
