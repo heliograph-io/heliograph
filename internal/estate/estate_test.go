@@ -115,3 +115,32 @@ func TestConfigIsNotWorldReadable(t *testing.T) {
 		t.Errorf("mode is %o, which is readable by others", fi.Mode().Perm())
 	}
 }
+
+// The last-sent id is what `watch` compares the status against. It has to
+// survive between two invocations, stay per estate, and read as "nothing sent"
+// rather than as an error when there is no record.
+func TestLastSentIsPerEstateAndSurvives(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	if got, err := LastSent("payments"); err != nil || got != "" {
+		t.Fatalf("nothing sent should read as empty, got %q, %v", got, err)
+	}
+	if err := RecordSent("payments", "20260925T070000Z-env"); err != nil {
+		t.Fatal(err)
+	}
+	if err := RecordSent("cardnet", "20260925T070100Z-net"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := LastSent("payments"); got != "20260925T070000Z-env" {
+		t.Errorf("payments read back %q", got)
+	}
+	if got, _ := LastSent("cardnet"); got != "20260925T070100Z-net" {
+		t.Errorf("cardnet read back %q", got)
+	}
+	// A record is not an estate. List must not start reporting one.
+	if names, _ := List(); len(names) != 0 {
+		t.Errorf("a last-sent record was listed as an estate: %v", names)
+	}
+	if err := RecordSent("../escape", "x"); err == nil {
+		t.Error("a name that escapes the state directory was accepted")
+	}
+}

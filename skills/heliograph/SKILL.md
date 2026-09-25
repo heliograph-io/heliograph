@@ -137,6 +137,12 @@ spaces are re-quoted on the way out. With more than one estate configured,
 every command needs `-e <estate>`: a request to the wrong estate runs a
 command on the wrong machine, and that is not recoverable by apologising.
 
+`watch` waits for the request `send` just published, not for whatever the
+station finishes next. Until the station reads it, `watch` and `status` say
+`not picked up yet`: the status on the far side still describes the previous
+run, so never read that run's result, or its refusal, as this one's.
+`heliograph watch <id>` follows a named request instead.
+
 What the CLI already handles, so do not do it by hand: the `git pull --rebase`
 discipline (two writers share the branch, and the station pushes far more
 often than you do), inventing request ids, and the timestamp arithmetic.

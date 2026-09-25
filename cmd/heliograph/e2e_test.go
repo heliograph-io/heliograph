@@ -307,3 +307,112 @@ func TestCLIDrivesAShareStation(t *testing.T) {
 		t.Errorf("the log has no footer, so the far side cannot tell a finished run from a hung one:\n%s", body)
 	}
 }
+
+// `watch` straight after `send` waits for the request just sent.
+//
+// The station's status describes the last request it READ, and for a whole poll
+// interval after a send that is the previous one. `watch` used to stop on the
+// first finished state it saw, so it reported the previous run as the result.
+// After an earlier refusal it told the reader to restart the station with
+// --allow-actions, for a request the station had not read yet.
+//
+// Two sends against a real station: the first is refused, the second is sent
+// and watched BEFORE the station runs again. The watch must not report the
+// refusal, and must report the second run once it has happened.
+func TestWatchWaitsForTheRequestJustSent(t *testing.T) {
+	station := stationDir(t)
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("no bash")
+	}
+
+	base := t.TempDir()
+	origin := filepath.Join(base, "origin.git")
+	work := filepath.Join(base, "work")
+	cfg := filepath.Join(base, "config")
+
+	sh(t, base, filepath.Join(station, "station", "bootstrap.sh"), work)
+	sh(t, base, "git", "init", "-q", "-b", "main", "--bare", origin)
+	sh(t, work, "git", "init", "-q", "-b", "main")
+	sh(t, work, "git", "remote", "add", "origin", origin)
+
+	// No mode declaration, so the station refuses it.
+	undeclared := "#!/usr/bin/env bash\necho NEVER-RUNS\n"
+	probe := "#!/usr/bin/env bash\n# heliograph-mode: read-only\necho THE-SECOND-REQUEST-RAN\n"
+	for name, body := range map[string]string{"undeclared.sh": undeclared, "probe.sh": probe} {
+		if err := os.WriteFile(filepath.Join(work, "steps", name), []byte(body), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	sh(t, work, "git", "add", "-A")
+	sh(t, work, "git", "commit", "-qm", "init")
+	sh(t, work, "git", "push", "-q", "-u", "origin", "main")
+
+	bin := filepath.Join(base, "heliograph")
+	sh(t, ".", "go", "build", "-o", bin, "github.com/heliograph-io/heliograph/cmd/heliograph")
+	run := func(args ...string) (string, error) {
+		t.Helper()
+		cmd := exec.Command(bin, args...)
+		cmd.Dir = base
+		cmd.Env = append(append(os.Environ(), "XDG_CONFIG_HOME="+cfg), noBackgroundGit...)
+		out, err := cmd.CombinedOutput()
+		return string(out), err
+	}
+	hg := func(args ...string) string {
+		t.Helper()
+		out, err := run(args...)
+		if err != nil {
+			t.Fatalf("heliograph %v: %v\n%s", args, err, out)
+		}
+		return out
+	}
+	sentID := func(out string) string {
+		t.Helper()
+		first := strings.SplitN(out, "\n", 2)[0]
+		if !strings.HasPrefix(first, "sent ") {
+			t.Fatalf("send did not report an id:\n%s", out)
+		}
+		return strings.TrimPrefix(first, "sent ")
+	}
+
+	hg("init", "e2e", "--dir", work)
+	first := sentID(hg("send", "steps/undeclared.sh"))
+	sh(t, work, "bash", "./station.sh", "--once", "--interval", "1")
+	if s := hg("status"); !strings.Contains(s, "refused") || !strings.Contains(s, first) {
+		t.Fatalf("the first request was not refused, so this test proves nothing:\n%s", s)
+	}
+
+	second := sentID(hg("send", "steps/probe.sh"))
+
+	// The station has not run since, so the only finished state on the far
+	// side is the first request's refusal.
+	out, err := run("watch", "--interval", "1s", "--timeout", "3s")
+	if err == nil {
+		t.Fatalf("watch returned a result for a request the station has not read:\n%s", out)
+	}
+	if strings.Contains(out, "--allow-actions") || strings.Contains(out, "refused:") {
+		t.Errorf("watch reported the earlier refusal as this request's result:\n%s", out)
+	}
+	if !strings.Contains(out, "not picked up") || !strings.Contains(out, second) {
+		t.Errorf("watch did not say the request it is waiting for has not been picked up:\n%s", out)
+	}
+	if s := hg("status"); !strings.Contains(s, "not picked up yet: "+second) {
+		t.Errorf("status did not say the request just sent has not been picked up:\n%s", s)
+	}
+
+	sh(t, work, "bash", "./station.sh", "--once", "--interval", "1")
+
+	done := hg("watch", "--interval", "1s", "--timeout", "10s")
+	if !strings.Contains(done, "log:") || !strings.Contains(done, "probe") {
+		t.Errorf("watch did not report the second run once it had happened:\n%s", done)
+	}
+	if body := hg("logs", "--last"); !strings.Contains(body, "THE-SECOND-REQUEST-RAN") {
+		t.Errorf("the last log is not the second request's:\n%s", body)
+	}
+
+	// A named id the station has moved past is never reported again, so
+	// watching it must stop rather than wait for ever.
+	if out, err := run("watch", first, "--interval", "1s", "--timeout", "5s"); err == nil ||
+		!strings.Contains(out, "moved on to "+second) {
+		t.Errorf("watching a superseded request did not stop and say why (err %v):\n%s", err, out)
+	}
+}
