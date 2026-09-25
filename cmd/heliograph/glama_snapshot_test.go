@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/heliograph-io/heliograph/internal/mcp"
 )
 
 // Glama scores the TOOL DEFINITIONS - their names, descriptions and schemas -
@@ -43,19 +45,21 @@ type glamaSnapshot struct {
 
 const snapshotPath = "../../packaging/glama-release.json"
 
-// toolsDigest is over the names, descriptions and schemas, because all three
-// are what Glama reads. A schema change with the same description still changes
-// what the tool is.
+// toolsDigest is over the names, descriptions, schemas and annotations, because
+// all four are what Glama reads. A schema change with the same description
+// still changes what the tool is, and so does a tool that stops being marked
+// read-only.
 func toolsDigest(t *testing.T) (string, []string) {
 	t.Helper()
 	type entry struct {
 		Name, Description string
 		Schema            map[string]any
+		Annotations       map[string]any
 	}
 	var es []entry
 	var names []string
 	for _, tl := range tools() {
-		es = append(es, entry{tl.Name, tl.Description, tl.Schema})
+		es = append(es, entry{tl.Name, tl.Description, tl.Schema, mcp.Annotations(tl)})
 		names = append(names, tl.Name)
 	}
 	sort.Slice(es, func(a, b int) bool { return es[a].Name < es[b].Name })

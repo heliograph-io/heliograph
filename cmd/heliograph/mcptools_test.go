@@ -19,8 +19,8 @@ func TestShippedToolsAreDescribedWellEnoughToChooseBy(t *testing.T) {
 		if tl.Schema["type"] != "object" {
 			t.Errorf("%s: schema type = %v, want object", tl.Name, tl.Schema["type"])
 		}
-		if tl.Call == nil {
-			t.Errorf("%s: no implementation", tl.Name)
+		if (tl.Call == nil) == (tl.CallWithProgress == nil) {
+			t.Errorf("%s: needs exactly one of Call and CallWithProgress", tl.Name)
 		}
 		// The schema must survive the trip. A map that will not marshal is a
 		// tools/list that fails at the point a client is deciding what exists.

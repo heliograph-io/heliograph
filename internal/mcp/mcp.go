@@ -31,8 +31,25 @@ import (
 	"sync"
 )
 
-// Version of the MCP protocol this speaks.
-const protocolVersion = "2024-11-05"
+// The MCP protocol versions this speaks, newest first.
+//
+// It spoke only 2024-11-05 until 2026-09-25, and that version has no tool
+// annotations, so a client could not tell a read from a write and had to ask
+// before every call. Nothing this server does differs between the three: it
+// sends no batches (dropped in 2025-06-18) and asks the client for nothing.
+// So it answers with the version the client asked for when it knows it, and
+// otherwise with its newest, which is what the specification says to do.
+var protocolVersions = []string{"2025-06-18", "2025-03-26", "2024-11-05"}
+
+// negotiate picks the version to answer an initialize with.
+func negotiate(asked string) string {
+	for _, v := range protocolVersions {
+		if v == asked {
+			return v
+		}
+	}
+	return protocolVersions[0]
+}
 
 type request struct {
 	JSONRPC string          `json:"jsonrpc"`
@@ -46,6 +63,14 @@ type response struct {
 	ID      json.RawMessage `json:"id,omitempty"`
 	Result  any             `json:"result,omitempty"`
 	Error   *rpcError       `json:"error,omitempty"`
+}
+
+// notification is a message the server sends unprompted. It has no id, so
+// the client does not answer it.
+type notification struct {
+	JSONRPC string `json:"jsonrpc"`
+	Method  string `json:"method"`
+	Params  any    `json:"params"`
 }
 
 type rpcError struct {
@@ -62,7 +87,23 @@ type Tool struct {
 	Description string
 	Schema      map[string]any
 	Call        func(args map[string]any) (string, error)
+
+	// ReadOnly says the tool changes nothing, anywhere. It is sent as the
+	// readOnlyHint annotation, so a client can let a model read status and
+	// logs without asking, and still ask before anything is sent. A tool that
+	// is not read-only is marked destructive, which is what a client assumes
+	// anyway: a request can run a step that changes state.
+	ReadOnly bool
+
+	// CallWithProgress is Call for a tool that runs long. It is handed a
+	// function that reports progress to the client, which does nothing when
+	// the client did not ask for progress. Set one of Call or CallWithProgress.
+	CallWithProgress func(args map[string]any, progress Progress) (string, error)
 }
+
+// Progress reports how far a long call has got: done so far, out of total,
+// and a line saying what is happening. done must grow with every report.
+type Progress func(done, total float64, message string)
 
 // Server serves tools over stdio.
 type Server struct {
@@ -116,8 +157,12 @@ func (s *Server) handle(req request) {
 
 	switch req.Method {
 	case "initialize":
+		var p struct {
+			ProtocolVersion string `json:"protocolVersion"`
+		}
+		_ = json.Unmarshal(req.Params, &p)
 		s.send(response{ID: req.ID, Result: map[string]any{
-			"protocolVersion": protocolVersion,
+			"protocolVersion": negotiate(p.ProtocolVersion),
 			"capabilities":    map[string]any{"tools": map[string]any{}},
 			"serverInfo":      map[string]any{"name": s.name, "version": s.version},
 		}})
@@ -130,6 +175,7 @@ func (s *Server) handle(req request) {
 		for _, t := range s.tools {
 			list = append(list, map[string]any{
 				"name": t.Name, "description": t.Description, "inputSchema": t.Schema,
+				"annotations": Annotations(t),
 			})
 		}
 		s.send(response{ID: req.ID, Result: map[string]any{"tools": list}})
@@ -138,6 +184,9 @@ func (s *Server) handle(req request) {
 		var p struct {
 			Name      string         `json:"name"`
 			Arguments map[string]any `json:"arguments"`
+			Meta      struct {
+				ProgressToken any `json:"progressToken"`
+			} `json:"_meta"`
 		}
 		if err := json.Unmarshal(req.Params, &p); err != nil {
 			s.send(response{ID: req.ID, Error: &rpcError{Code: -32602, Message: "bad params"}})
@@ -147,7 +196,13 @@ func (s *Server) handle(req request) {
 			if t.Name != p.Name {
 				continue
 			}
-			text, err := t.Call(p.Arguments)
+			var text string
+			var err error
+			if t.CallWithProgress != nil {
+				text, err = t.CallWithProgress(p.Arguments, s.progress(p.Meta.ProgressToken))
+			} else {
+				text, err = t.Call(p.Arguments)
+			}
 			if err != nil {
 				// An error is returned as a RESULT with isError, not as a
 				// JSON-RPC error. The distinction matters: a JSON-RPC error
@@ -174,6 +229,34 @@ func (s *Server) handle(req request) {
 		s.send(response{ID: req.ID, Error: &rpcError{
 			Code: -32601, Message: "method not found: " + req.Method}})
 	}
+}
+
+// progress returns the reporter for one call. With no token the client did not
+// ask for progress, and sending it anyway is a message it has no request to
+// match against, so the reporter does nothing.
+func (s *Server) progress(token any) Progress {
+	if token == nil {
+		return func(float64, float64, string) {}
+	}
+	return func(done, total float64, message string) {
+		params := map[string]any{"progressToken": token, "progress": done, "message": message}
+		if total > 0 {
+			params["total"] = total
+		}
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		_ = s.out.Encode(notification{JSONRPC: "2.0", Method: "notifications/progress", Params: params})
+	}
+}
+
+// Annotations are the hints a client reads to decide what needs a person's
+// approval. Exported so the tool list's snapshot can include them: they are
+// part of what a directory scores.
+func Annotations(t Tool) map[string]any {
+	if t.ReadOnly {
+		return map[string]any{"readOnlyHint": true}
+	}
+	return map[string]any{"readOnlyHint": false, "destructiveHint": true}
 }
 
 // Str reads a string argument.

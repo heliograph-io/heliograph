@@ -29,7 +29,7 @@
     },
     {
       "name": "heliograph_send",
-      "description": "Publish a step for the station to run, and return immediately. This does NOT wait for the result: poll heliograph_status with the id this returns until it reports a terminal state, then read the log. The station decides whether to run it at all: a step that declares no mode is refused, and one that changes state needs CONFIRM=yes and a station started with --allow-actions."
+      "description": "Publish a step for the station to run, and return immediately. This does NOT wait for the result: pass the id this returns to heliograph_wait, or poll heliograph_status with it, until it reports a terminal state, then read the log. The station decides whether to run it at all: a step that declares no mode is refused, and one that changes state needs CONFIRM=yes and a station started with --allow-actions."
     },
     {
       "name": "heliograph_status",
@@ -38,8 +38,12 @@
     {
       "name": "heliograph_stop",
       "description": "End the station's loop once the step it is running has finished. It publishes `stopped` and exits, and only the operator can start it again. Use it when the investigation is over, not to kill a step: that is heliograph_cancel. A request the station has not read yet will not run."
+    },
+    {
+      "name": "heliograph_wait",
+      "description": "Wait for one request to finish, for at most max_seconds, and return its status. Pass the id heliograph_send returned. It returns as soon as the run ends, is refused or is cancelled, and says so if the station has moved past the request. At the limit it returns the state so far and the run carries on: call it again with the same id. Keep max_seconds under your own tool-call timeout. It sends progress while it waits, if you ask for it."
     }
   ],
-  "toolsDigest": "e83490fccd365ccc13387d3355a397b926de1677665ae01ee0e46c9c6adb61fa",
-  "_listingIsBehind": "The listing was released at 0.3.2 and describes 0.3.2's heliograph_status. That description was WRONG - it named five states where status.go has seven, and told a caller to poll until one of four terminal states, omitting `undelivered`, which status.go:121 makes terminal and whose comment says waiting is exactly the wrong response. The correction could not wait for a Glama session, so `toolsDigest` and `tools` here are the CURRENT definitions and drift detection still catches the next change. THE OUTSTANDING HUMAN STEP is a Build and Release at https://glama.ai/mcp/servers/heliograph-io/heliograph/admin/dockerfile, after which `releasedVersion` becomes that version and this field goes. heliograph-cloud#267. Since then (heliograph-io/heliograph#147): heliograph_status takes an optional `id` and says `not picked up yet` for a status about any other request, and heliograph_send tells the caller to poll with that id. The same Build and Release covers both. And (heliograph-io/heliograph#149): heliograph_send takes optional `mode` and `expires`, and now writes the same target and 24-hour expiry the CLI does. And (heliograph-io/heliograph#153): two new tools, heliograph_cancel and heliograph_stop."
+  "toolsDigest": "8e5aa4acfe74839be8d16c309020600abdab8e52d2388a2c301dceda0a664f4d",
+  "_listingIsBehind": "The listing was released at 0.3.2 and describes 0.3.2's heliograph_status. That description was WRONG - it named five states where status.go has seven, and told a caller to poll until one of four terminal states, omitting `undelivered`, which status.go:121 makes terminal and whose comment says waiting is exactly the wrong response. The correction could not wait for a Glama session, so `toolsDigest` and `tools` here are the CURRENT definitions and drift detection still catches the next change. THE OUTSTANDING HUMAN STEP is a Build and Release at https://glama.ai/mcp/servers/heliograph-io/heliograph/admin/dockerfile, after which `releasedVersion` becomes that version and this field goes. heliograph-cloud#267. Since then (heliograph-io/heliograph#147): heliograph_status takes an optional `id` and says `not picked up yet` for a status about any other request, and heliograph_send tells the caller to poll with that id. The same Build and Release covers both. And (heliograph-io/heliograph#149): heliograph_send takes optional `mode` and `expires`, and now writes the same target and 24-hour expiry the CLI does. And (heliograph-io/heliograph#153): two new tools, heliograph_cancel and heliograph_stop. And (heliograph-io/heliograph#160): heliograph_wait, read-only and destructive annotations on every tool (the digest now covers annotations), and heliograph_send points at heliograph_wait."
 }
