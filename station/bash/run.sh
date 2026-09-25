@@ -28,7 +28,7 @@ DEFAULT_STEP="env"
 #  Steps on this branch:
 #    DIAGNOSTICS (read-only, safe to repeat)
 #      env    control-node snapshot: OS, tools, auth, proxy, DNS, git   [default]
-#      net    connectivity matrix to HOSTS on PORTS: DNS, ICMP, TCP
+#      net    connectivity matrix to HOSTS on PORTS: DNS, ICMP, TCP  [also: net-probe]
 #      win    Windows control-node snapshot: OS, hotfixes, services, events
 #      tools  what this host can do: every tool, python module and ODBC driver
 #    ACTIONS (change something - never make one the default step)
@@ -185,6 +185,12 @@ STEP_FILE=""
 case "$STEP" in
   env)  CMD=(./steps/env-snapshot.sh) ;;
   net)  CMD=(./steps/net-probe.sh) ;;
+  # `net-probe` is the name every page of the documentation sends, because it
+  # is the file's name. It was not registered, so the flagship example was
+  # refused on every stock station. Its own line, and `net)` above left exactly
+  # as it was: people add a step by anchoring a sed on that line, and so do
+  # this repository's own CI and tests/test-remote.sh.
+  net-probe)  CMD=(./steps/net-probe.sh) ;;
   win)  ps_step ./steps/win-snapshot.ps1 ;;
   tools) CMD=(./steps/tools-inventory.sh) ;;
 

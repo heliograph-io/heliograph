@@ -109,8 +109,10 @@ Steps live in the transport repo, one file per question:
 2. Fill in `TASK.md`: the question, what is known, what would settle it. It is
    what stops the steps becoming a fishing trip
 3. `cp steps/_template.sh steps/<name>.sh`, write the probes
-4. Register it in the `case` table in `run.sh` **and** the step-list comment
-   above it, so `--list` stays honest
+4. No registration needed: `heliograph send steps/<name>.sh` sends it by
+   path. Register it in the `case` table in `run.sh` (and the step-list
+   comment above it, so `--list` stays honest) only to give it a short name.
+   A name the station does not know is refused as `unknown step`
 5. `git add` and `git commit`. No manual push needed: `heliograph send`
    rebases onto the remote and pushes `HEAD`, so your commits and the request
    travel together

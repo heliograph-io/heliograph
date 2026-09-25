@@ -169,6 +169,12 @@ If the station has moved **past** the request, because a later one was sent
 after it, the status will never describe it again. `watch` says so and stops;
 `heliograph logs` still lists a log for every run.
 
+A refusal ends the watch, and `watch` and `status` both print the station's own
+`reason:`. It names what would change the station's mind, and that is often not
+a flag: a step the station does not know, a step that declares no mode, a
+request that has expired. The general advice about `--allow-actions` and
+`CONFIRM=yes` is printed only for a station too old to publish a reason.
+
 `--timeout` stops the watch, never the run.
 
 ## mcp

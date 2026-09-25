@@ -941,6 +941,11 @@ func cmdStatus(args []string) error {
 	printIf("finished:", s.Finished)
 	printIf("exit:    ", s.Exit)
 	printIf("log:     ", s.Log)
+	// THE STATION'S OWN REASON, which says what would change its mind. Without
+	// it a refusal printed only the generic advice below, which is right for an
+	// action step and wrong for everything else - an unknown step, an expired
+	// request, a mode mismatch, a replay.
+	printIf("reason:  ", s.Reason)
 	// WHO ASKED, when the station could establish it. An archive that can only
 	// say the estate asked cannot answer the first question anybody puts to it.
 	printIf("by:      ", s.By)
@@ -952,13 +957,18 @@ func cmdStatus(args []string) error {
 		printIf("members: ", s.TrustMembers)
 	}
 	if s.Refused() && notYet == "" {
-		// A refusal names a flag somebody has to pass. Saying so here saves
-		// the round trip that would otherwise be spent looking for a broken
-		// step that is not broken.
+		// A refusal is not a failure, and saying so here saves the round trip
+		// that would otherwise be spent looking for a broken step that is not
+		// broken. The generic advice is only for a station too old to publish
+		// a reason: next to a reason, it contradicts it.
 		fmt.Println()
-		fmt.Println("refused: the station would not run this. Its reason is above.")
-		fmt.Println("  an action step needs the station started with --allow-actions,")
-		fmt.Println("  and the request to carry CONFIRM=yes.")
+		if s.Reason != "" {
+			fmt.Println("refused: the station would not run this. Its reason is above.")
+		} else {
+			fmt.Println("refused: the station would not run this, and published no reason.")
+			fmt.Println("  an action step needs the station started with --allow-actions,")
+			fmt.Println("  and the request to carry CONFIRM=yes.")
+		}
 	}
 	return nil
 }
@@ -1193,7 +1203,12 @@ func cmdWatch(args []string) error {
 			if s.Done() {
 				fmt.Println()
 				if s.Refused() {
-					fmt.Println("refused: the station would not run this.")
+					if s.Reason != "" {
+						fmt.Println("refused: the station would not run this.")
+						fmt.Printf("  reason: %s\n", s.Reason)
+						return nil
+					}
+					fmt.Println("refused: the station would not run this, and published no reason.")
 					fmt.Println("  an action step needs the station started with --allow-actions,")
 					fmt.Println("  and the request to carry CONFIRM=yes.")
 					return nil

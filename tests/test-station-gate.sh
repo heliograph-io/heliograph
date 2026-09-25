@@ -88,6 +88,26 @@ assert_eq "and PUBLISHED, which is what makes the safe default affordable" \
 assert_contains "and the reason names the flag that would allow it" \
   "allow-actions" "$(cat "$TR/station/status")"
 
+# --- a step that does not exist says so --------------------------------------
+# run.sh answers `--mode` with 2 for no such step and 3 for no declaration. The
+# loop read only the printed line, so an unknown step was refused as one that
+# "declares no mode ()" - and the reader was told to add a header to a file that
+# does not exist.
+request u1 no-such-step
+agent
+assert_eq "an unknown step is refused" "refused" "$(status_field state)"
+assert_contains "and the reason says the step is unknown, not that it declares no mode" \
+  "unknown step" "$(sed -n 's/^reason:[[:space:]]*//p' "$TR/station/status" | head -1)"
+
+# `net-probe` is the name every page of the documentation sends. It was not
+# registered, so the flagship example was refused on every stock station. With
+# no HOSTS the step exits 2 and says why, which is still a run and a log.
+request n1 net-probe
+agent
+assert_eq "net-probe, the name the documentation sends, runs on a stock station" \
+  "idle" "$(status_field state)"
+assert_eq "and it captured a log" "1" "$(logs_for net-probe)"
+
 # --- the operator opting in ---------------------------------------------------
 request w2 writer "CONFIRM=yes"
 agent --allow-actions

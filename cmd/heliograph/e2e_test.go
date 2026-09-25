@@ -446,3 +446,76 @@ func TestWatchWaitsForTheRequestJustSent(t *testing.T) {
 		t.Errorf("watching a superseded request did not stop and say why (err %v):\n%s", err, out)
 	}
 }
+
+// The example every page leads with runs on a stock station, and a step that
+// does not exist is refused with a reason the reader can see.
+//
+// `heliograph send net-probe` was refused on every freshly bootstrapped
+// station: run.sh registered the step as `net`. The station then published
+// "declares no mode ()", because it threw away the exit code that says "no such
+// step". And `status` and `watch` never printed the station's `reason:` at all,
+// only generic advice about --allow-actions, so the reader could not have seen
+// even the wrong reason.
+func TestTheDocumentedStepRunsAndAnUnknownOneSaysWhy(t *testing.T) {
+	station := stationDir(t)
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("no bash")
+	}
+
+	base := t.TempDir()
+	origin := filepath.Join(base, "origin.git")
+	work := filepath.Join(base, "work")
+	cfg := filepath.Join(base, "config")
+
+	sh(t, base, filepath.Join(station, "station", "bootstrap.sh"), work)
+	sh(t, base, "git", "init", "-q", "-b", "main", "--bare", origin)
+	quietOrigin(t, origin)
+	sh(t, work, "git", "init", "-q", "-b", "main")
+	sh(t, work, "git", "remote", "add", "origin", origin)
+	sh(t, work, "git", "add", "-A")
+	sh(t, work, "git", "commit", "-qm", "init")
+	sh(t, work, "git", "push", "-q", "-u", "origin", "main")
+
+	bin := filepath.Join(base, "heliograph")
+	sh(t, ".", "go", "build", "-o", bin, "github.com/heliograph-io/heliograph/cmd/heliograph")
+	hg := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command(bin, args...)
+		cmd.Dir = base
+		cmd.Env = append(append(os.Environ(), "XDG_CONFIG_HOME="+cfg), noBackgroundGit...)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("heliograph %v: %v\n%s", args, err, out)
+		}
+		return string(out)
+	}
+
+	hg("init", "e2e", "--dir", work)
+
+	// The flagship example, exactly as the README types it. With no HOSTS the
+	// step exits 2 and says why, which is still a run with a log.
+	hg("send", "net-probe")
+	sh(t, work, "bash", "./station.sh", "--once", "--interval", "1")
+	if s := hg("status"); !strings.Contains(s, "state:    idle") {
+		t.Fatalf("net-probe did not run on a stock station:\n%s", s)
+	}
+	if logs := hg("logs"); !strings.Contains(logs, "net-probe-") {
+		t.Errorf("net-probe left no log:\n%s", logs)
+	}
+
+	hg("send", "no-such-step")
+	sh(t, work, "bash", "./station.sh", "--once", "--interval", "1")
+	s := hg("status")
+	if !strings.Contains(s, "reason:   unknown step 'no-such-step'") {
+		t.Errorf("status did not print the station's reason, or the reason is not \"unknown step\":\n%s", s)
+	}
+	// The `actions:` line names --allow-actions as a property of the station,
+	// so the check is for the generic ADVICE, which is about the request.
+	if strings.Contains(s, "declares no mode") || strings.Contains(s, "an action step needs") {
+		t.Errorf("an unknown step was explained as a missing mode or a missing flag:\n%s", s)
+	}
+	w := hg("watch", "--interval", "1s", "--timeout", "10s")
+	if !strings.Contains(w, "reason: unknown step 'no-such-step'") {
+		t.Errorf("watch did not print the station's reason:\n%s", w)
+	}
+}
