@@ -1,6 +1,6 @@
 ---
 name: heliograph
-description: Debug and change a machine you cannot log into, through an operator who cannot debug it, by driving the heliograph CLI - git as the transport in both directions. Plants the station, configures the estate, publishes steps, and reads the pushed logs. Trigger on phrases like "heliograph", "I can't get on that box", "no access to that environment", "the only person who can reach it is X", "air-gapped", "can you give me something to run", "they keep pasting output at me", "run it on the control node", "capture the log and push it back". Not for machines you can SSH into yourself.
+description: Debug and change a machine you cannot log into, through an operator who cannot debug it, by driving the heliograph CLI - git as the transport in both directions. Plants the station, configures the estate, publishes steps, and reads the pushed logs. Trigger on phrases like "heliograph", "I can't get on that box", "no access to that environment", "the only person who can reach it is X", "air-gapped", "can you give me something to run on that box", "they keep pasting output at me", "run it on the control node", "capture the log and push it back". Not for machines you can SSH into yourself.
 ---
 
 # heliograph
@@ -91,6 +91,14 @@ no-CLI fallback is a procedure for a person, not for you: clone
 own, and `--flavour powershell` plants the twin for a box with no bash. Do not reimplement `send`, `watch` or the gates by editing files: one
 driver is the point.
 
+**If `heliograph_*` MCP tools are loaded, use them instead of the CLI** for
+what they cover: `heliograph_estates`, `heliograph_send`, `heliograph_status`,
+`heliograph_logs`, `heliograph_read_log`, `heliograph_gaps` and
+`heliograph_doctor`. They build the same requests and apply the same gates,
+and they return rather than hold a shell call open. There is no watch tool:
+poll `heliograph_status` with the id `heliograph_send` returned. Bootstrap,
+`init`, `plant`, `trust` and everything else are CLI only.
+
 **What the far side needs depends on choices you make here**, so tell the
 operator before they start, not after the station refuses:
 
@@ -145,7 +153,7 @@ site, next to the binary that implements them:
 
 ```bash
 heliograph send env
-heliograph watch
+heliograph watch --timeout 8m
 ```
 
 `env` answers what that box actually is: OS, tools, sudo, proxy, DNS, cloud
@@ -180,7 +188,7 @@ before the first one. Every rule in it cost a round trip.
 
 ```bash
 heliograph send net-probe HOSTS="sql01 sql02"   # publish a request, and return
-heliograph watch                                # follow it until it ends
+heliograph watch --timeout 8m                   # follow it, for 8 minutes at most
 heliograph status                               # what the station is doing now
 heliograph logs --last                          # the whole log
 heliograph logs --last --gaps                   # where it stalled
@@ -195,7 +203,13 @@ command on the wrong machine, and that is not recoverable by apologising.
 station finishes next. Until the station reads it, `watch` and `status` say
 `not picked up yet`: the status on the far side still describes the previous
 run, so never read that run's result, or its refusal, as this one's.
-`heliograph watch <id>` follows a named request instead.
+`heliograph watch <id> --timeout 8m` follows a named request instead.
+
+**Always bound `watch`.** Without `--timeout` it waits indefinitely, and your
+own shell call has a time limit: when that kills it, you lose track of the
+request. Keep the timeout under that limit. A timeout stops the watch, not the
+run: `watch` exits non-zero and says the run continues, and running it again
+picks the same request back up.
 
 What the CLI already handles, so do not do it by hand: the `git pull --rebase`
 discipline (two writers share the branch, and the station pushes far more
