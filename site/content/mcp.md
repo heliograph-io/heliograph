@@ -88,7 +88,10 @@ the run has started. An agent that treats the reply as the result will read the
 and the shape of the loop is:
 
 1. `heliograph_send`
-2. `heliograph_status` until the state is `idle`, `cancelled`, `refused` or `stopped`
+2. `heliograph_status` with the `id` it returned, until the state is `idle`,
+   `cancelled`, `refused`, `stopped` or `undelivered`. With the id, a status
+   about an earlier request comes back as `not picked up yet` instead of as
+   this one's result
 3. `heliograph_gaps` to find where the time went
 4. `heliograph_read_log` for the whole thing
 

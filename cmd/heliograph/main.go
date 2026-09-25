@@ -135,7 +135,7 @@ const usage = `heliograph - run things on a machine you cannot log into
   heliograph trust add <name> <key>         a signed change: enrol somebody
   heliograph trust revoke <name>            a signed change: remove somebody
   heliograph status                         what the station is doing now
-  heliograph watch                          follow a run until it ends
+  heliograph watch [id]                     follow a run until it ends: the last one sent, or <id>
   heliograph logs                           list the captured logs
   heliograph logs <name>                    print one, whole
   heliograph logs --last --gaps             where the last run stalled
@@ -857,6 +857,11 @@ func cmdSend(args []string) error {
 	if err := op.PutRequest(req); err != nil {
 		return err
 	}
+	// Recorded AFTER it arrived, never before: `watch` waits for this id, and
+	// an id that never reached the far side would be waited for indefinitely.
+	if err := estate.RecordSent(op.Estate.Name, req.ID); err != nil {
+		fmt.Fprintf(os.Stderr, "heliograph: sent, but could not record the id for `watch`: %v\n", err)
+	}
 	fmt.Printf("sent %s\n", req.ID)
 	fmt.Printf("  step: %s\n", step)
 	if req.Env != "" {
@@ -865,7 +870,7 @@ func cmdSend(args []string) error {
 	if req.Expires != "" {
 		fmt.Printf("  valid until %s. A station that reads it later refuses it.\n", req.Expires)
 	}
-	fmt.Println("  the station picks this up within its poll interval. `heliograph status` to follow it.")
+	fmt.Println("  the station picks this up within its poll interval. `heliograph watch` to follow it.")
 	return nil
 }
 
@@ -888,6 +893,18 @@ func cmdStatus(args []string) error {
 		// identical until a log appears, which can be an hour.
 		fmt.Println("the station has published no status: it may not have started yet")
 		return nil
+	}
+	// THE STATUS IS ABOUT THE LAST REQUEST THE STATION READ, which straight
+	// after a send is not the one just sent. Said first, because everything
+	// below it - a refusal especially - reads as this request's result.
+	notYet := ""
+	if want, _ := estate.LastSent(op.Estate.Name); want != "" {
+		notYet, _ = notPickedUp(s, want)
+	}
+	if notYet != "" {
+		fmt.Printf("note:     %s\n", notYet)
+		fmt.Println("          everything below is about an earlier request")
+		fmt.Println()
 	}
 	fmt.Printf("state:    %s\n", s.State)
 	printIf("id:      ", s.ID)
@@ -918,7 +935,7 @@ func cmdStatus(args []string) error {
 		fmt.Printf("trust:    %s (serial %s)\n", short12(s.Trust), orDash(s.TrustSerial))
 		printIf("members: ", s.TrustMembers)
 	}
-	if s.Refused() {
+	if s.Refused() && notYet == "" {
 		// A refusal names a flag somebody has to pass. Saying so here saves
 		// the round trip that would otherwise be spent looking for a broken
 		// step that is not broken.
@@ -1055,22 +1072,72 @@ func printGaps(name string, body []byte, min time.Duration) error {
 	return nil
 }
 
+// notPickedUp says whether a status is about some request other than want,
+// and if so, what to tell the reader. It returns "" when the status is the
+// answer, or when there is no request to compare against.
+//
+// moved is true when the station has gone PAST want: its status names a request
+// sent later. Then the status will never describe want, and waiting longer is
+// waiting for ever. The request either ran before the later one, or was
+// replaced in the request slot before the station read it.
+func notPickedUp(s wire.Status, want string) (msg string, moved bool) {
+	if want == "" || s.ID == want {
+		return "", false
+	}
+	if sent, ok := wire.IDTime(want); ok {
+		if now, ok := wire.IDTime(s.ID); ok && now.After(sent) {
+			return fmt.Sprintf("the station has moved on to %s, which was sent after %s. "+
+				"That request either ran earlier or was replaced before the station read it: "+
+				"`heliograph logs` lists a log for every run", s.ID, want), true
+		}
+	}
+	if s.State == "" {
+		return fmt.Sprintf("not picked up yet: %s. The station has published no status at all", want), false
+	}
+	return fmt.Sprintf("not picked up yet: %s. The station last published %q for %s",
+		want, s.State, orDash(s.ID)), false
+}
+
 // cmdWatch follows a run to its end.
 //
 // Without this the choice is polling `status` by hand or waiting blind, and
 // "running for forty minutes" and "wedged" look identical from here until a
 // log appears.
+//
+// IT WAITS FOR ONE REQUEST, not for the first finished state. Straight after a
+// send the station has not read the request yet, and its status still
+// describes the previous run - so a watch that stopped on any finished state
+// reported that run as the result. After an earlier refusal it then told the
+// reader to restart the station with --allow-actions, for a request nobody had
+// read. The request is the one named, or the last one `send` recorded.
 func cmdWatch(args []string) error {
 	fs := flag.NewFlagSet("watch", flag.ExitOnError)
 	name := estateFlag(fs)
 	every := fs.Duration("interval", 10*time.Second, "how often to poll")
 	timeout := fs.Duration("timeout", 0, "give up after this long (0 waits indefinitely)")
-	if err := fs.Parse(args); err != nil {
+	pos, err := parse(fs, args)
+	if err != nil {
 		return err
+	}
+	if len(pos) > 1 {
+		return fmt.Errorf("usage: heliograph watch [id] [--interval 10s] [--timeout 0]")
 	}
 	op, err := open(*name)
 	if err != nil {
 		return err
+	}
+	want := ""
+	if len(pos) == 1 {
+		want = pos[0]
+	} else if want, err = estate.LastSent(op.Estate.Name); err != nil {
+		return err
+	}
+	if want != "" {
+		fmt.Printf("%s  waiting for %s\n", stamp(), want)
+	} else {
+		// Nothing sent from here, so there is nothing to compare against. Say
+		// so, because what follows is then whatever the station does next.
+		fmt.Printf("%s  no request sent from here: following whatever the station runs\n", stamp())
 	}
 
 	deadline := time.Time{}
@@ -1085,6 +1152,14 @@ func cmdWatch(args []string) error {
 			// treats it that way and so does this: reporting and carrying on
 			// is right for a link that flaps.
 			fmt.Printf("%s  fetch failed, still watching: %v\n", stamp(), err)
+		} else if msg, moved := notPickedUp(s, want); msg != "" {
+			if msg != lastLine {
+				fmt.Printf("%s  %s\n", stamp(), msg)
+				lastLine = msg
+			}
+			if moved {
+				return fmt.Errorf("stopped watching: the station will not report %s again", want)
+			}
 		} else {
 			line := s.State
 			if s.Progress != "" {
@@ -1116,6 +1191,9 @@ func cmdWatch(args []string) error {
 			}
 		}
 		if !deadline.IsZero() && time.Now().After(deadline) {
+			if strings.HasPrefix(lastLine, "not picked up yet") {
+				return fmt.Errorf("not picked up after %s: the request is still waiting for the station, this stopped watching", *timeout)
+			}
 			return fmt.Errorf("still running after %s: the run continues, this stopped watching", *timeout)
 		}
 		time.Sleep(*every)

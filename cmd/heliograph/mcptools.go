@@ -87,8 +87,8 @@ func tools() []mcp.Tool {
 	}, {
 		Name: "heliograph_send",
 		Description: "Publish a step for the station to run, and return immediately. " +
-			"This does NOT wait for the result: poll heliograph_status until it reports a " +
-			"terminal state, then read the log. The station decides whether to run it at " +
+			"This does NOT wait for the result: poll heliograph_status with the id this returns " +
+			"until it reports a terminal state, then read the log. The station decides whether to run it at " +
 			"all: a step that declares no mode is refused, and one that changes state needs " +
 			"CONFIRM=yes and a station started with --allow-actions.",
 		Schema: obj(map[string]any{
@@ -128,9 +128,13 @@ func tools() []mcp.Tool {
 			if err := o.PutRequest(req); err != nil {
 				return "", err
 			}
+			// The same record `heliograph send` keeps, so `heliograph watch`
+			// waits for a request an agent sent too.
+			_ = estate.RecordSent(o.Estate.Name, req.ID)
 			return fmt.Sprintf("sent %s\nstep: %s\nenv: %s\n\nThe station picks this up within its poll interval. "+
-				"Poll heliograph_status until state is idle, cancelled, refused, stopped or undelivered.",
-				req.ID, step, req.Env), nil
+				"Poll heliograph_status with id %s until state is idle, cancelled, refused, stopped or undelivered. "+
+				"Without the id, the status straight after a send still describes the previous run.",
+				req.ID, step, req.Env, req.ID), nil
 		},
 	}, {
 		Name: "heliograph_status",
@@ -151,7 +155,11 @@ func tools() []mcp.Tool {
 		// TestGlamaSnapshotMatchesTheTools. The returned line explains itself
 		// in full, which is where a model reads it anyway, so the description
 		// buys nothing worth a manual release.
-		Schema: obj(map[string]any{"estate": estateArg}),
+		Schema: obj(map[string]any{
+			"id": str("The id heliograph_send returned. With it, a status about any other request " +
+				"is reported as not picked up yet instead of as this request's result."),
+			"estate": estateArg,
+		}),
 		Call: func(a map[string]any) (string, error) {
 			o, err := open(mcp.Str(a, "estate"))
 			if err != nil {
@@ -163,6 +171,17 @@ func tools() []mcp.Tool {
 			}
 			if s.State == "" {
 				return "The station has published no status. It may not have been started: the operator runs ./start.sh once.", nil
+			}
+			// NOT THIS REQUEST'S RESULT, and said instead of the result. Straight
+			// after a send the status still describes the previous run, and a
+			// model shown that run's `refused` reads it as a refusal of the step
+			// it just sent - then asks for a station restart nobody needs.
+			if msg, moved := notPickedUp(s, mcp.Str(a, "id")); msg != "" {
+				msg = strings.ToUpper(msg[:1]) + msg[1:] + "."
+				if moved {
+					return msg + " Polling again will not change this: find that request's log with heliograph_logs.", nil
+				}
+				return msg + " That status is about an earlier request, not this one. Poll again.", nil
 			}
 			var b strings.Builder
 			fmt.Fprintf(&b, "state: %s\n", s.State)

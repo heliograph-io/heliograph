@@ -10,7 +10,7 @@ heliograph init <estate> --dir <path> [--transport git|share|bundle|objstore]
 heliograph estates
 heliograph plant [--service] [--script]
 heliograph send <step> [KEY=VALUE ...] [--note <text>]
-heliograph watch [--interval 10s] [--timeout 0]
+heliograph watch [<id>] [--interval 10s] [--timeout 0]
 heliograph status
 heliograph logs [--last] [<name>] [--gaps] [--min 10s]
 heliograph doctor
@@ -151,6 +151,25 @@ may never have been asked. See [the station page](/station#the-action-mode-it-pu
 
 A mode this build does not recognise is shown verbatim and claimed for neither
 side, for the same reason an unknown state is not treated as finished.
+
+## watch
+
+Follows one request until the station finishes it: the last one `send`
+published from this machine, or the `<id>` you name.
+
+It waits for **that** request, not for the first finished state it sees. The
+status on the far side describes the last request the station read, and for a
+whole poll interval after a send that is the previous one. Until the ids match,
+`watch` prints `not picked up yet` rather than a result, and `status` says the
+same above everything else it prints. Reporting the earlier run instead reads as
+this request's answer - and after an earlier refusal it sends the reader off to
+restart a station that never saw the request.
+
+If the station has moved **past** the request, because a later one was sent
+after it, the status will never describe it again. `watch` says so and stops;
+`heliograph logs` still lists a log for every run.
+
+`--timeout` stops the watch, never the run.
 
 ## mcp
 

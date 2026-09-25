@@ -310,3 +310,53 @@ func List() ([]string, error) {
 	sort.Strings(names)
 	return names, nil
 }
+
+// RecordSent remembers the id of the last request sent to an estate from this
+// machine.
+//
+// THE STATUS SAYS WHAT THE STATION DID LAST, NOT WHAT IT WAS ASKED LAST. Straight
+// after a send the two differ for a whole poll interval, and in that window the
+// status still describes the previous run. `watch` used to stop on the first
+// finished state it saw, so it reported the previous run as the result - and
+// after an earlier refusal it told the reader to restart the station with
+// --allow-actions, for a request that had not been read yet. Remembering the id
+// is what lets the reader tell "finished" from "not picked up yet".
+//
+// Kept in the state directory beside the relay's sequence numbers, not in the
+// estate file: it changes on every send, and the estate file is configuration.
+func RecordSent(name, id string) error {
+	path, err := sentPath(name)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(id+"\n"), 0o600)
+}
+
+// LastSent returns the id RecordSent last wrote for an estate, or "" when
+// nothing has been sent from this machine. Nothing recorded is not an error:
+// every estate configured before this existed has no record.
+func LastSent(name string) (string, error) {
+	path, err := sentPath(name)
+	if err != nil {
+		return "", err
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", err
+	}
+	return strings.TrimSpace(string(b)), nil
+}
+
+func sentPath(name string) (string, error) {
+	if err := validName(name); err != nil {
+		return "", err
+	}
+	dir, err := StateDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, name+".last-sent"), nil
+}

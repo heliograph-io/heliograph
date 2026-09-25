@@ -257,3 +257,26 @@ func NewID(step string, t time.Time) string {
 	}
 	return stamp + "-" + name
 }
+
+// IDTime reads the send time back out of an id NewID built. ok is false for an
+// id that did not come from NewID, which a station may well hold: an operator
+// can write any id into a request by hand.
+//
+// It is what lets the control side tell a station that has not reached a
+// request yet from one that has moved PAST it. The first is worth waiting for.
+// The second never produces the request's own status, so waiting on it is
+// waiting for ever.
+func IDTime(id string) (time.Time, bool) {
+	const layout = "20060102T150405Z"
+	if len(id) < len(layout) {
+		return time.Time{}, false
+	}
+	t, err := time.Parse(layout, id[:len(layout)])
+	if err != nil {
+		return time.Time{}, false
+	}
+	if len(id) > len(layout) && id[len(layout)] != '-' {
+		return time.Time{}, false
+	}
+	return t, true
+}

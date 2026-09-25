@@ -68,6 +68,24 @@ func TestNewIDFlattensAStepGivenByPath(t *testing.T) {
 	}
 }
 
+// IDTime is the inverse of NewID's stamp, and it must not invent a time for an
+// id somebody wrote by hand: a guessed time would tell `watch` a station had
+// moved past a request it has not reached.
+func TestIDTimeReadsBackWhatNewIDWrote(t *testing.T) {
+	ts := time.Date(2026, 9, 6, 10, 15, 0, 0, time.UTC)
+	for _, id := range []string{NewID("net-probe", ts), NewID("", ts)} {
+		got, ok := IDTime(id)
+		if !ok || !got.Equal(ts) {
+			t.Errorf("IDTime(%q) = %v, %v; want %v", id, got, ok, ts)
+		}
+	}
+	for _, id := range []string{"", "manual-1", "20260906T101500Zx", "2026-09-06T10:15:00Z-env"} {
+		if _, ok := IDTime(id); ok {
+			t.Errorf("IDTime(%q) claimed a time for an id NewID did not make", id)
+		}
+	}
+}
+
 // A station in the field may write keys this build has never heard of, and an
 // operator may hand-edit one out. Neither is an error: refusing would make a
 // newer station unreadable by an older CLI, on the one machine nobody can

@@ -338,3 +338,44 @@ func TestToolsAreCallableThroughTheServer(t *testing.T) {
 		t.Errorf("the call did not reach the estate:\n%s", out.String())
 	}
 }
+
+// With an id, a status about any other request is not this request's result.
+// Straight after a send the status still describes the previous run, and a
+// model shown that run's refusal reads it as a refusal of the step it just
+// sent.
+func TestStatusWithAnIDSaysNotPickedUpYet(t *testing.T) {
+	share := estateOnDisk(t)
+	d := scopeDir(t, share)
+	write(t, filepath.Join(d, "status"),
+		"state: refused\nid: 20260101T000000Z-restart\nstep: restart-svc\nreason: this step changes state\n")
+
+	out, err := call(t, "heliograph_status", map[string]any{"id": "20260101T000100Z-env"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "Not picked up yet: 20260101T000100Z-env") {
+		t.Errorf("a status about another request was not reported as not picked up:\n%s", out)
+	}
+	if strings.Contains(out, "--allow-actions") {
+		t.Errorf("the earlier request's refusal was reported as this one's:\n%s", out)
+	}
+
+	// The id that IS on the status gets the full answer, refusal and all.
+	out, err = call(t, "heliograph_status", map[string]any{"id": "20260101T000000Z-restart"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "reason: this step changes state") {
+		t.Errorf("the matching id did not get the station's answer:\n%s", out)
+	}
+
+	// Sent through the tool, the reply tells the caller to pass the id.
+	out, err = call(t, "heliograph_send", map[string]any{"step": "env"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := strings.TrimPrefix(strings.SplitN(out, "\n", 2)[0], "sent ")
+	if !strings.Contains(out, "heliograph_status with id "+id) {
+		t.Errorf("the send reply does not say to poll with the id:\n%s", out)
+	}
+}

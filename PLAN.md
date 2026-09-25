@@ -603,6 +603,15 @@ is published after delivery has already committed the log, and called a status
 document arriving alone "the partial log did not travel". Both were fixed by
 changing the assertion, not the behaviour.
 
+## Landed 2026-09-25
+
+Fixes for the issues filed from the 24 Sep review of the skill, #147 to #160.
+One issue, one PR.
+
+| PR | |
+|---|---|
+| #161 | **`watch` reported the previous run straight after a send** (#147) - it stopped on the first finished state and never compared ids, and for a poll interval after a send the status still describes the last request the station read. After an earlier refusal it told the reader to restart the station with `--allow-actions`. `send` now records the id per estate, `watch [id]` waits for it and says `not picked up yet` until the status names it, and stops when the station has moved past it. `status` and `heliograph_status` (new optional `id`) say the same. The Glama listing is still behind, now by one more schema change |
+
 ## The signalling toolkit (in design)
 
 A program that adds the third shape - the **beam**, a held-open live channel -
