@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The test that matters.
@@ -381,6 +382,10 @@ func TestWatchWaitsForTheRequestJustSent(t *testing.T) {
 		t.Fatalf("the first request was not refused, so this test proves nothing:\n%s", s)
 	}
 
+	// An id carries the time to the second, and "sent after" can only be told
+	// apart across a second boundary. On a fast runner both sends land in the
+	// same second, and the superseded check at the end then cannot fire.
+	time.Sleep(1100 * time.Millisecond)
 	second := sentID(hg("send", "steps/probe.sh"))
 
 	// The station has not run since, so the only finished state on the far
