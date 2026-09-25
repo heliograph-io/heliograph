@@ -225,7 +225,9 @@ executable form of the contract rather than a description of it.
 `stop: yes` in the request ends the loop from your side, which matters because
 nobody is sitting at that terminal. `cancel: yes` kills the step running right
 now; `cancel: <id>` kills it only if that id is the one running, so a stale
-cancel cannot reap a later run. The partial log is always kept **on the
+cancel cannot reap a later run. `heliograph cancel` and `heliograph stop` write
+these fields for you, on every transport that can carry them: see
+[the CLI page](/cli#cancel). The partial log is always kept **on the
 station**, and on the git transport it is delivered with the cancellation; on
 blob and relay it currently is not, and stays local.
 

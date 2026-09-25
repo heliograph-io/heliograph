@@ -93,8 +93,8 @@ driver is the point.
 
 **If `heliograph_*` MCP tools are loaded, use them instead of the CLI** for
 what they cover: `heliograph_estates`, `heliograph_send`, `heliograph_status`,
-`heliograph_logs`, `heliograph_read_log`, `heliograph_gaps` and
-`heliograph_doctor`. They build the same requests and apply the same gates,
+`heliograph_cancel`, `heliograph_stop`, `heliograph_logs`,
+`heliograph_read_log`, `heliograph_gaps` and `heliograph_doctor`. They build the same requests and apply the same gates,
 and they return rather than hold a shell call open. There is no watch tool:
 poll `heliograph_status` with the id `heliograph_send` returned. Bootstrap,
 `init`, `plant`, `trust` and everything else are CLI only.
@@ -204,6 +204,8 @@ heliograph watch --timeout 8m                   # follow it, for 8 minutes at mo
 heliograph status                               # what the station is doing now
 heliograph logs --last                          # the whole log
 heliograph logs --last --gaps                   # where it stalled
+heliograph cancel                               # kill the running step
+heliograph stop                                 # end the station's loop after this run
 ```
 
 Everything after the step name is environment, passed verbatim; values with
@@ -233,10 +235,20 @@ runs nobody asked for. The station holds **one request, not a queue**. A new
 step ends. But a second `send` before the station has read the first replaces
 it, and the first never runs - `send` names the request it replaced when that
 happens. Send the next once `watch` shows the last one picked up.
-To kill the running step, set `cancel: yes` in `station/request` (or
-`cancel: <id>` to kill only that id), commit and push - the station stays
-responsive while a step runs. `stop: yes` ends the loop from your side, which
-matters because nobody is sitting at that terminal.
+
+`heliograph cancel` kills the running step: the station signals it at its next
+poll and publishes `cancelled`, with the log as far as it got. `cancel <id>`
+kills only that run. It needs git or a file share, whose station reads the
+request while a step runs; on any other transport it refuses, because the
+cancel would arrive after the step had finished. It stops only a running step:
+a request the station has not picked up still runs. It sets `cancel:` on the
+request already in `station/request` and keeps its id, so a request queued
+behind the step is kept, and runs next. Do not edit that file yourself.
+
+`heliograph stop` ends the loop once the current run is over, which matters
+because nobody is sitting at that terminal. It works on every transport. Only
+the operator can start the station again, and a station that reads the stop
+again stops again: send the next step before they restart it.
 
 **The gates. The loop is read-only by default.** Every step declares itself in
 its own file - `# heliograph-mode: read-only` or `action` - and a step that
