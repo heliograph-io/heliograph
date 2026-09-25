@@ -223,9 +223,9 @@ the gates above. Three things are yours to set, and a refusal says which one
 failed:
 
 - **`--mode`.** Pass the mode the step declares, and always for an action:
-  `heliograph send fix-dns --mode action CONFIRM=yes`. The station then
-  refuses the request if the step file changed to the other mode after you
-  wrote it. That refusal means the step is not what you reviewed: read it
+  `heliograph send steps/fix-dns.sh --mode action CONFIRM=yes`. The station
+  then refuses the request if the step file changed to the other mode after
+  you wrote it. That refusal means the step is not what you reviewed: read it
   again before you resend.
 - **`--expires`.** A request is valid for 24 hours by default, and a station
   that reads it later refuses it as expired. `--allow-actions` and

@@ -132,8 +132,8 @@ the rest.
 Two flags bind a request beyond its step and environment:
 
 ```bash
-heliograph send fix-dns --mode action CONFIRM=yes   # refused if fix-dns no longer declares action
-heliograph send env --expires 72h                   # valid for three days instead of one
+heliograph send steps/fix-dns.sh --mode action CONFIRM=yes   # refused if the step no longer declares action
+heliograph send env --expires 72h                            # valid for three days instead of one
 ```
 
 `--mode` is the mode you expect the step to declare, `read-only` or `action`.
