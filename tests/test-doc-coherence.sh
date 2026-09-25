@@ -210,11 +210,17 @@ else
   t_no "SKILL.md links the site for near-side reference"
 fi
 
-# `--interval`, `--timeout` and `--min` are CLI-only flags with no station-side
-# meaning. Finding one here means a flag table was copied in, which is the exact
+# `--interval` and `--min` are CLI-only flags with no station-side meaning.
+# Finding one here means a flag table was copied in, which is the exact
 # duplication the split between the two repositories exists to prevent.
+#
+# `--timeout` WAS on this list and came off it on purpose. `watch` without it
+# waits indefinitely, and an agent's shell call has a time limit, so the call
+# was killed mid-watch and the agent lost track of the request. The list was
+# what kept the fix out: the one flag an agent must pass was the one the skill
+# was forbidden to name. It is required below instead.
 copied=""
-for f in --interval --timeout --min --transport; do
+for f in --interval --min --transport; do
   grep -q -- "$f" "$SKILL" && copied="$copied $f"
 done
 if [ -z "$copied" ]; then
@@ -297,6 +303,50 @@ if command -v go >/dev/null 2>&1; then
   fi
 else
   t_skip "no Go toolchain, so SKILL.md's flags were NOT checked against the CLI"
+fi
+
+# --- every watch is bounded -------------------------------------------------
+# Every `heliograph watch` an agent could copy, in a code block or an inline
+# span, carries --timeout. A diagram line that merely mentions watch does not
+# start with the command, so it is not read as one.
+watch_cmds="$( { awk '/^```/ { inb = !inb; next } inb' "$SKILL"
+                 grep -o '`heliograph watch[^`]*`' "$SKILL" | tr -d '`'
+               } | grep -E '^[[:space:]]*heliograph watch( |$)' || true)"
+if [ -z "$watch_cmds" ]; then
+  t_no "SKILL.md shows how to watch a request (no heliograph watch command found)"
+else
+  unbounded="$(printf '%s\n' "$watch_cmds" | grep -v -- '--timeout' || true)"
+  if [ -z "$unbounded" ]; then
+    t_ok "every heliograph watch in SKILL.md is bounded with --timeout ($(printf '%s\n' "$watch_cmds" | grep -c .))"
+  else
+    t_no "every heliograph watch in SKILL.md is bounded with --timeout"
+    printf '%s\n' "$unbounded" | sed 's/^/     unbounded: /'
+  fi
+fi
+# That watch accepts --timeout at all is asked of the binary above, with
+# every other flag SKILL.md passes.
+
+# --- the MCP tools are preferred, and named ----------------------------------
+# SKILL.md named the MCP server only in its links table, so an agent with the
+# tools loaded shelled out to the CLI anyway. It now says to use them, and it
+# has to name every one: read from the tool list, so a new tool fails this until
+# the skill says when to use it.
+mcp_tools="$(grep -oE 'Name:[[:space:]]*"heliograph_[a-z_]+"' "$HERE/../cmd/heliograph/mcptools.go" \
+               | sed 's/.*"\(heliograph_[a-z_]*\)"/\1/' | sort -u)"
+if [ -z "$mcp_tools" ]; then
+  t_no "cmd/heliograph/mcptools.go defines tools the test can read"
+fi
+for tool in $mcp_tools; do
+  if grep -q -- "$tool" "$SKILL"; then
+    t_ok "SKILL.md names the MCP tool $tool"
+  else
+    t_no "SKILL.md names the MCP tool $tool"
+  fi
+done
+if grep -qi 'MCP tools are loaded, use them' "$SKILL"; then
+  t_ok "SKILL.md tells an agent to prefer loaded MCP tools over the CLI"
+else
+  t_no "SKILL.md tells an agent to prefer loaded MCP tools over the CLI"
 fi
 
 # --- the term that was retired -----------------------------------------------
