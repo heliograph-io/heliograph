@@ -164,6 +164,21 @@ func (g *Git) FetchStatus() (wire.Status, error) {
 	return wire.ParseStatus([]byte(out))
 }
 
+// FetchRequest reads the request from the checkout, which is where PutRequest
+// wrote it. The station never writes this file, so the checkout holds what this
+// side last sent. If another control node has sent since, PutRequest's rebase
+// conflicts and nothing is overwritten.
+func (g *Git) FetchRequest() (wire.Request, error) {
+	b, err := os.ReadFile(filepath.Join(g.dir, filepath.FromSlash(requestPath)))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return wire.Request{}, nil
+		}
+		return wire.Request{}, err
+	}
+	return wire.ParseRequest(b)
+}
+
 // PutRequest publishes a request and does not return until it has arrived.
 //
 // It rebases rather than merges or forces. The station pushes far more often
@@ -199,8 +214,17 @@ func (g *Git) PutRequest(r wire.Request) error {
 	// station does the same thing for the same reason. An identity that IS
 	// configured still wins, because a real name in the history is better
 	// than ours.
+	// A cancel or a stop keeps the id already in the slot, so the subject says
+	// which it was. Otherwise `git log` shows the same request sent twice.
+	subject := "request: " + r.ID
+	if r.Cancel != "" {
+		subject += " (cancel " + r.Cancel + ")"
+	}
+	if r.Stop == "yes" {
+		subject += " (stop)"
+	}
 	if _, err := g.git("commit", "--quiet", "-m",
-		"request: "+r.ID+" ***NO_CI***", "--", requestPath); err != nil {
+		subject+" ***NO_CI***", "--", requestPath); err != nil {
 		return err
 	}
 

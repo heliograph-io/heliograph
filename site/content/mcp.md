@@ -47,6 +47,8 @@ tools can reach it.
 | `heliograph_estates` | what is configured here, and which transport each uses |
 | `heliograph_send` | publish a step, and return. It does **not** wait |
 | `heliograph_status` | what the station is doing now |
+| `heliograph_cancel` | kill the running step, on git or a file share |
+| `heliograph_stop` | end the station's loop after the current run |
 | `heliograph_logs` | the captured logs, newest first |
 | `heliograph_read_log` | one log, whole |
 | `heliograph_gaps` | where a run stalled, longest interval first |

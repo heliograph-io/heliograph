@@ -4,6 +4,10 @@
   "releasedVersion": "0.3.2",
   "tools": [
     {
+      "name": "heliograph_cancel",
+      "description": "Kill the step the station is running now. The station signals it at its next poll and publishes `cancelled`, with the log as far as it got. Only a git or file-share station reads a request while a step runs, so on any other transport this refuses. A request the station has not started is not cancelled: it still runs. Pass the id heliograph_send returned to cancel only that run."
+    },
+    {
       "name": "heliograph_doctor",
       "description": "Check whether the transport works from here, and change nothing. Run this before a long step: read access is not write access, and finding out afterwards costs a whole round trip through somebody who cannot debug the machine."
     },
@@ -30,8 +34,12 @@
     {
       "name": "heliograph_status",
       "description": "What the station is doing now. State is one of starting, running, idle, cancelled, refused, stopped or undelivered. Five of those are terminal: idle, cancelled, refused, stopped and undelivered. `starting` and `running` mean the run is still going. An empty state means the station has published nothing yet, which usually means it has not been started. A state you do not recognise is neither finished nor alive: a newer station may publish one, so keep polling rather than giving up. `refused` is not a failure: it means the station would not run the step, and the reason names the flag that would permit it. `undelivered` means the run finished and the log is complete but the transport would not take it, so waiting for more is exactly wrong."
+    },
+    {
+      "name": "heliograph_stop",
+      "description": "End the station's loop once the step it is running has finished. It publishes `stopped` and exits, and only the operator can start it again. Use it when the investigation is over, not to kill a step: that is heliograph_cancel. A request the station has not read yet will not run."
     }
   ],
-  "toolsDigest": "052dec20068eee7e3bfaec4f2f6d6c19046f089b431b27368d34f0b3f84253b7",
-  "_listingIsBehind": "The listing was released at 0.3.2 and describes 0.3.2's heliograph_status. That description was WRONG - it named five states where status.go has seven, and told a caller to poll until one of four terminal states, omitting `undelivered`, which status.go:121 makes terminal and whose comment says waiting is exactly the wrong response. The correction could not wait for a Glama session, so `toolsDigest` and `tools` here are the CURRENT definitions and drift detection still catches the next change. THE OUTSTANDING HUMAN STEP is a Build and Release at https://glama.ai/mcp/servers/heliograph-io/heliograph/admin/dockerfile, after which `releasedVersion` becomes that version and this field goes. heliograph-cloud#267. Since then (heliograph-io/heliograph#147): heliograph_status takes an optional `id` and says `not picked up yet` for a status about any other request, and heliograph_send tells the caller to poll with that id. The same Build and Release covers both. And (heliograph-io/heliograph#149): heliograph_send takes optional `mode` and `expires`, and now writes the same target and 24-hour expiry the CLI does."
+  "toolsDigest": "e83490fccd365ccc13387d3355a397b926de1677665ae01ee0e46c9c6adb61fa",
+  "_listingIsBehind": "The listing was released at 0.3.2 and describes 0.3.2's heliograph_status. That description was WRONG - it named five states where status.go has seven, and told a caller to poll until one of four terminal states, omitting `undelivered`, which status.go:121 makes terminal and whose comment says waiting is exactly the wrong response. The correction could not wait for a Glama session, so `toolsDigest` and `tools` here are the CURRENT definitions and drift detection still catches the next change. THE OUTSTANDING HUMAN STEP is a Build and Release at https://glama.ai/mcp/servers/heliograph-io/heliograph/admin/dockerfile, after which `releasedVersion` becomes that version and this field goes. heliograph-cloud#267. Since then (heliograph-io/heliograph#147): heliograph_status takes an optional `id` and says `not picked up yet` for a status about any other request, and heliograph_send tells the caller to poll with that id. The same Build and Release covers both. And (heliograph-io/heliograph#149): heliograph_send takes optional `mode` and `expires`, and now writes the same target and 24-hour expiry the CLI does. And (heliograph-io/heliograph#153): two new tools, heliograph_cancel and heliograph_stop."
 }

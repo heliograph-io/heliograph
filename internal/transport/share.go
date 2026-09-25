@@ -122,6 +122,19 @@ func (s *Share) FetchStatus() (wire.Status, error) {
 	return wire.ParseStatus(b)
 }
 
+// FetchRequest reads the request in the scope's slot. The station reads it and
+// never writes it.
+func (s *Share) FetchRequest() (wire.Request, error) {
+	b, err := os.ReadFile(s.path("request"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return wire.Request{}, nil
+		}
+		return wire.Request{}, err
+	}
+	return wire.ParseRequest(b)
+}
+
 // PutRequest writes the request atomically.
 //
 // Write-then-rename, because a station polling this directory can read it at
@@ -236,16 +249,18 @@ func (b *Bundle) PutRequest(r wire.Request) error {
 	if err := os.WriteFile(path, r.Marshal(), 0o644); err != nil {
 		return err
 	}
-	fmt.Printf("bundle written: %s\n", path)
+	// ON STDERR, because `heliograph mcp` calls this too, and there stdout is
+	// the protocol: these lines would be read as a malformed message.
+	fmt.Fprintf(os.Stderr, "bundle written: %s\n", path)
 	// WHAT TO DO NEXT, and it has been wrong twice. It first named
 	// `./station.sh --bundle`, a flag that has never existed; it was then
 	// corrected to say the bundle had no station side at all, which was true
 	// until transports/bundle.sh landed. Both cost somebody an afternoon
 	// before they concluded the tool was broken, so this says the thing that
 	// is true now and names the variables rather than a flag.
-	fmt.Println("  carry it across, then on the far side:")
-	fmt.Println("    TRANSPORT=bundle BUNDLE_DIR=<where you mounted it> ./start.sh -- --once")
-	fmt.Println("  and carry the medium back. https://docs.heliograph.io/air-gapped")
+	fmt.Fprintln(os.Stderr, "  carry it across, then on the far side:")
+	fmt.Fprintln(os.Stderr, "    TRANSPORT=bundle BUNDLE_DIR=<where you mounted it> ./start.sh -- --once")
+	fmt.Fprintln(os.Stderr, "  and carry the medium back. https://docs.heliograph.io/air-gapped")
 	return nil
 }
 

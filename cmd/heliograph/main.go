@@ -136,6 +136,8 @@ const usage = `heliograph - run things on a machine you cannot log into
   heliograph trust revoke <name>            a signed change: remove somebody
   heliograph status                         what the station is doing now
   heliograph watch [id]                     follow a run until it ends: the last one sent, or <id>
+  heliograph cancel [id]                    kill the running step (git and share only)
+  heliograph stop                           end the station's loop after the current run
   heliograph logs                           list the captured logs
   heliograph logs <name>                    print one, whole
   heliograph logs --last --gaps             where the last run stalled
@@ -184,6 +186,10 @@ func main() {
 		err = cmdLogs(os.Args[2:])
 	case "watch":
 		err = cmdWatch(os.Args[2:])
+	case "cancel":
+		err = cmdCancel(os.Args[2:])
+	case "stop":
+		err = cmdStop(os.Args[2:])
 	case "check", "doctor":
 		err = cmdDoctor(os.Args[2:])
 	case "mcp":

@@ -11,6 +11,8 @@ heliograph estates
 heliograph plant [--service] [--script]
 heliograph send <step> [KEY=VALUE ...] [--note <text>]
 heliograph watch [<id>] [--interval 10s] [--timeout 0]
+heliograph cancel [<id>]
+heliograph stop
 heliograph status
 heliograph logs [--last] [<name>] [--gaps] [--min 10s]
 heliograph doctor
@@ -246,6 +248,41 @@ request that has expired. The general advice about `--allow-actions` and
 `CONFIRM=yes` is printed only for a station too old to publish a reason.
 
 `--timeout` stops the watch, never the run.
+
+## cancel
+
+Kills the step the station is running now. The station signals the step's
+process group at its next poll and publishes `cancelled`, with the log as far
+as it got - which is usually the evidence you wanted.
+
+```
+cancel sent for 20260925T101500Z-slow (step steps/slow.sh)
+```
+
+`cancel <id>` names the run, and is refused if that is not the one running. A
+cancel stops a **run**. The station ignores a `cancel:` that was already in the
+request when a step started, so a cancel sent for a request it has not picked
+up yet would not stop it: `cancel` refuses rather than publish one.
+
+It works on git and a file share, whose station reads the request while a step
+runs. On a bundle, an object store or a relay the station reads a request only
+between runs, so a cancel would arrive after the step had finished, and
+`cancel` refuses there too. `stop` still works on all of them.
+
+It sets `cancel:` on the request already in the slot and keeps its id. A new id
+would start a run as soon as the cancel landed. And the slot may hold a request
+sent while the step ran, which is kept and runs next.
+
+## stop
+
+Ends the station's loop once the step it is running has finished. The station
+publishes `stopped` and exits. It checks `stop:` before anything else in a
+request, so it works on every transport.
+
+Only the operator can start it again, and a station that reads the stop again
+stops again. So send the next step before they restart it: a new `send`
+replaces the stop. A request sent before the stop and not yet read will not
+run, and `stop` names it.
 
 ## mcp
 

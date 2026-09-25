@@ -43,3 +43,19 @@ type Transport interface {
 	// never by value.
 	Describe() string
 }
+
+// RequestReader is a transport whose published request can be read back from
+// this side: git, where it is a file in the checkout, and the file share.
+//
+// NOT ON Transport, because the relay cannot satisfy it. A relay request is
+// sealed for the station and deleted when the station collects it, so nothing
+// here can read it again.
+//
+// It exists for `cancel` and `stop`. Those set one field on the request already
+// in the slot rather than writing a new one, because the slot may hold a
+// request queued behind the running step, and a new document would replace it.
+type RequestReader interface {
+	// FetchRequest returns the request this side last published. A slot that
+	// has never held one is the zero Request, not an error.
+	FetchRequest() (wire.Request, error)
+}

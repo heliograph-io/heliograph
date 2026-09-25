@@ -236,6 +236,38 @@ func tools() []mcp.Tool {
 			return b.String(), nil
 		},
 	}, {
+		Name: "heliograph_cancel",
+		Description: "Kill the step the station is running now. The station signals it at its next poll " +
+			"and publishes `cancelled`, with the log as far as it got. Only a git or file-share station " +
+			"reads a request while a step runs, so on any other transport this refuses. A request the " +
+			"station has not started is not cancelled: it still runs. Pass the id heliograph_send returned " +
+			"to cancel only that run.",
+		Schema: obj(map[string]any{
+			"id":     str("The run to cancel. Omit to cancel whatever is running; with it, nothing else is touched."),
+			"estate": estateArg,
+		}),
+		Call: func(a map[string]any) (string, error) {
+			o, err := open(mcp.Str(a, "estate"))
+			if err != nil {
+				return "", err
+			}
+			return cancelRun(o, mcp.Str(a, "id"))
+		},
+	}, {
+		Name: "heliograph_stop",
+		Description: "End the station's loop once the step it is running has finished. It publishes " +
+			"`stopped` and exits, and only the operator can start it again. Use it when the investigation " +
+			"is over, not to kill a step: that is heliograph_cancel. A request the station has not read " +
+			"yet will not run.",
+		Schema: obj(map[string]any{"estate": estateArg}),
+		Call: func(a map[string]any) (string, error) {
+			o, err := open(mcp.Str(a, "estate"))
+			if err != nil {
+				return "", err
+			}
+			return stopStation(o)
+		},
+	}, {
 		Name: "heliograph_logs",
 		Description: "List the captured logs, newest first. Each name carries the request id " +
 			"that produced it, so the log for a run you sent is the one whose name matches " +

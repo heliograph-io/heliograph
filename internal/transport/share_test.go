@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -184,6 +185,29 @@ func TestBundleWritesACarryableFile(t *testing.T) {
 	// and sorts into the order they were made.
 	if !strings.Contains(found, "20260906T101500Z-net") {
 		t.Errorf("the bundle name does not carry the id: %s", found)
+	}
+}
+
+// `heliograph mcp` publishes through this, and there stdout is the protocol.
+// The carry instructions went to stdout, so a heliograph_send or heliograph_stop
+// over a bundle estate put four lines of prose into the JSON-RPC stream.
+func TestBundleWritesNothingToStdout(t *testing.T) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved := os.Stdout
+	os.Stdout = w
+	b, _ := NewBundle(t.TempDir())
+	putErr := b.PutRequest(wire.Request{Version: wire.Version, ID: "20260906T101500Z-net", Step: "net"})
+	os.Stdout = saved
+	_ = w.Close()
+	out, _ := io.ReadAll(r)
+	if putErr != nil {
+		t.Fatal(putErr)
+	}
+	if len(out) != 0 {
+		t.Errorf("PutRequest wrote to stdout, which is the MCP protocol stream:\n%s", out)
 	}
 }
 
