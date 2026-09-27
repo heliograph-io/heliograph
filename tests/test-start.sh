@@ -730,6 +730,54 @@ assert_contains "and says so" "preflight: clear" "$OUT"
 assert_contains "the transport is named, not assumed" "ok    transport     relay" "$OUT"
 assert_contains "and it is reported reachable, which is what tp_check answered" \
   "relay reach" "$OUT"
+
+# THE STATION'S OWN FINGERPRINT, which it did not print until this was added.
+#
+# The PowerShell station has printed both since it was written
+# (`station/powershell/transports/relay.psm1:539-547`). This one printed only
+# the peer's, so an operator standing at a bash station had nothing of their own
+# to read out - and reading twelve characters back over a channel they already
+# trust is the whole of what closes enrolment's residual risk
+# (`internal/seal/seal.go:76-86`). A ceremony whose input is hard to obtain is
+# a ceremony people skip, and nothing detects that they skipped it.
+#
+# Asserted as the WHOLE ROW rather than by searching for the value, because the
+# peer row carries the same value from the same fake and a bare grep for it
+# passed with the identity row missing entirely.
+assert_contains "the station prints its own fingerprint, for the operator to read out" \
+  "ok    identity      SHA256:fake  <- read this to the control side" "$OUT"
+assert_contains "and the peer's, to check against" \
+  "ok    peer          SHA256:fake  <- and check this against theirs" "$OUT"
+
+# Both fingerprints are printed BEFORE the network is touched, so an operator
+# with no route out still leaves with the value they were asked for. Ordered by
+# line number rather than by eye.
+IDENTITY_LINE="$(printf '%s\n' "$OUT" | grep -n '^ok    identity' | cut -d: -f1)"
+REACH_LINE="$(printf '%s\n' "$OUT" | grep -n 'relay reach' | cut -d: -f1)"
+assert_eq "the fingerprints come before the reach check, not after it" "yes" \
+  "$( [ -n "$IDENTITY_LINE" ] && [ -n "$REACH_LINE" ] && [ "$IDENTITY_LINE" -lt "$REACH_LINE" ] && echo yes || echo no )"
+
+# A key file that will not parse is caught here rather than on the first request
+# that never runs, and the line names WHICH key: the identity is made on this
+# machine, the peer arrives from the control side, and they are set by different
+# people at different times.
+cat > "$FAKE/badseal" <<'EOS'
+#!/usr/bin/env bash
+[ "${1:-}" = "fingerprint" ] && exit 1
+exit 0
+EOS
+chmod +x "$FAKE/badseal"
+BADSEAL_SHA="$(sha256sum "$FAKE/badseal" | cut -d' ' -f1)"
+RC=0
+OUT="$( cd "$TMP/relaystation" && relay_env \
+        && export RELAY_SEAL="$FAKE/badseal" RELAY_SEAL_SHA256="$BADSEAL_SHA" \
+        && ./start.sh --check 2>&1 )" || RC=$?
+assert_contains "a key that will not parse names the station's own key file" \
+  "FAIL  identity" "$OUT"
+assert_contains "and says where it is made, because the operator makes it here" \
+  "heliograph-seal keygen" "$OUT"
+assert_contains "a peer that will not parse is named separately" "FAIL  peer" "$OUT"
+assert_eq "and the preflight blocks rather than starting a station that verifies nothing" "1" "$RC"
 # EVERY git row, not just the write check. Asserting on `git write` alone proved
 # nothing: the old code never reached it in a directory with no repository,
 # because `git read` failed first and returned early. It would have passed
