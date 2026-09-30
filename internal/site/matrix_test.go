@@ -172,7 +172,7 @@ func TestThePayloadCannotCloseItsOwnScriptTag(t *testing.T) {
 	}
 	// Prove the assertion can see the thing it guards, rather than passing on
 	// data that happens to contain no angle bracket. This is the liveness
-	// check PLAN.md's redaction-corpus lesson asks for: without it, a payload
+	// check AGENTS.md's redaction-corpus lesson asks for: without it, a payload
 	// with no "<" in it and no escaping at all reads exactly like a pass.
 	hostile, err := json.Marshal(map[string]string{"n": "</script><img onerror=alert(1)>"})
 	if err != nil {

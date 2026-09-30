@@ -5,6 +5,7 @@ Thanks for your interest - contributions are welcome.
 ## Ways to help
 
 - Report a bug or request a feature via [issues](https://github.com/heliograph-io/heliograph/issues)
+- Pick up an issue under one of the epics on the [roadmap](ROADMAP.md)
 - Add a generic step, a `lib/` helper, or a hard-won lesson to `references/method.md`, via a pull request
 
 ## Local development
@@ -30,6 +31,40 @@ at install time. Full walkthrough in [`docs/dev-setup.md`](docs/dev-setup.md).
 - Confirm a failing step still writes its footer, reports its real exit code, and
   is still committed
 - British English, plain hyphens, no trailing full stops on headings
+
+## Conventions that are easy to lose
+
+- **Specs before code**, in `docs/specs/`, reviewed on their own
+- **Every PR states what it cost** - the measurement, the failure it prevents,
+  the thing that was tried and did not work
+- **British English, plain hyphens, no em dashes**, no trailing full stops on
+  headings
+- **No backtick may appear inside a Go raw string** in `internal/site/theme.go`.
+  This has broken the build twice, both times from a comment
+- `station/bash/.station-delivery` appears when the suite runs locally. It is
+  gitignored; do not commit it
+
+## Verifying a change
+
+```bash
+gofmt -l . && go vet ./... && go test ./...
+find skills station tests -name '*.sh' -exec bash -n {} +
+shellcheck -S warning $(find . -name '*.sh' -not -path './.git/*')
+./tests/run-tests.sh
+./tests/conformance/conformance.sh tests/conformance/drivers/bash.sh
+./tests/conformance/conformance.sh tests/conformance/drivers/mutant.sh   # must FAIL
+go run ./cmd/heliograph-site site/content /tmp/site                      # 26 pages
+```
+
+macOS is absent locally, so the launchd suite skips. **CI runs it and CI has
+caught real defects that skip hid** - do not read a local green as complete.
+
+**Docker may only need starting.** `sudo systemctl start docker` was all it
+took, and it turns the container and Kubernetes suites from skipped into 271
+assertions that run in about ten minutes - including a whole station run in a
+container. They found four defects in one afternoon that CI would have taken
+four pushes to surface one at a time. Try it before pushing anything that
+touches `station/bash/docker/`.
 
 ## The bar for a change to `station/bash/`
 

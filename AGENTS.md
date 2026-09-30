@@ -214,12 +214,19 @@ libraries. If a design seems to need something novel, the design is wrong.
 
 ## Where the work stands
 
-[`PLAN.md`](PLAN.md) is the register: what has landed, what is next and in what
-order, which defects are known and deliberately unfixed, and the lessons this
-repository has already paid for. Read it before starting, and write to it as
-work lands rather than at the end - it is what survives a handover.
+[`ROADMAP.md`](ROADMAP.md) is the plan: what heliograph is for, where it
+stands, and one epic per line for now, next and later. Every piece of work is
+an issue, and a known defect is an issue labelled `type: bug`, so write to the
+issue as work lands rather than at the end - it is what survives a handover.
+What landed before 2026-09-29 is in
+[`docs/history/2026-09-plan.md`](docs/history/2026-09-plan.md), moved whole out
+of `PLAN.md`, which is now a one-line pointer so old links still resolve.
 
-One rule from it belongs here too, because it is a hard one: **a check nobody
+The lessons this repository has already paid for are
+[at the end of this file](#lessons-this-repository-has-already-paid-for). Read
+them before starting.
+
+One rule from them belongs here too, because it is a hard one: **a check nobody
 has watched fail is a check nobody knows works.** Break every new assertion
 deliberately and watch it fail before keeping it. Two coverage guards written
 on 2026-09-08 were wrong in ways that read as correct and reported PASS while
@@ -265,3 +272,269 @@ Be honest about what none of it covers: nothing here exercises a capture
 against a real remote machine. The behaviour that matters is what a log looks
 like after a round trip through someone else's terminal, and no test asserts
 that.
+
+## Lessons this repository has already paid for
+
+Added here when something cost real time. AGENTS.md holds the hard rules; this
+holds what was learned proving them.
+
+**A guard on a dependency graph outlives a guard on an import block.** The claim
+that `push` cannot author a request is the product's central one, and it is kept
+by three assertions rather than one: `go list -deps` proves the package cannot
+REACH `internal/seal` or `internal/transport` transitively, an AST walk proves it
+never names `wire.Request`, and the end-to-end test counts POSTs to the
+station's request queue across a real push and requires the count not to move.
+The first is the one that keeps working when somebody adds a helper in a year,
+because an import three packages away signs exactly as well as a direct one.
+
+**A check nobody has watched fail is a check nobody knows works.** Two coverage
+guards written on 2026-09-08 were wrong in ways that read as correct:
+`GIT_(?:AUTH_HEADER|TOKEN|TOKEN_FILE|TOKEN_USER)` matched `GIT_TOKEN` first and
+found two mechanisms out of four; `^\s+echo "([a-z]+):` missed every
+conditional field, including the one it was written for. Both reported PASS.
+Break every new assertion deliberately and watch it fail before keeping it.
+
+**Documenting a component is how the defects are found.** Writing the far-side
+pages turned up three false claims, including one fatal: `station.sh` required a
+local `station/request` file, which blob and relay never create, so a relay
+station could never run a step at all. Nothing else had noticed.
+
+**A test can prove a file is absent while claiming to prove a guard works.**
+The transport-name whitelist was checked by passing `../../evil` and
+`/etc/passwd`, and every case passed with the whitelist DELETED - because no
+module exists at those paths, so the refusal came from the filesystem. The
+assertion now demands the whitelist's own diagnostic, and adds a traversal that
+RESOLVES TO A REAL MODULE: without the whitelist, that one loads.
+
+**`Import-Module` inside a module function imports into THAT module's session
+state.** The transport loader loaded the transport, initialised it, and returned
+success - and every function the transport exported was invisible to the caller.
+It read as "the transport is fine, and `Send-TpLog` does not exist". `-Global`
+is the fix, and the reason it was not obvious is that the failure names the
+FUNCTION rather than the import.
+
+**A value type read through a property is a COPY.**
+`$info.BasicLimitInformation.LimitFlags = 0x2000` set the flag on a copy of the
+nested struct and threw it away, so the Job Object was created without
+KILL_ON_JOB_CLOSE and guaranteed nothing. Every call succeeded, the mechanism
+reported itself in force, the tests were green, and `taskkill` was quietly
+doing all the work. Assign the nested struct back. And the reason it survived:
+the only assertion looked for `strategy=`, which an empty value satisfies - so
+nothing ever asked whether the job existed.
+
+**A test that passes with the thing deleted is worse than no test.** An
+assertion here claimed `Test-CapAlive` is not fooled by a zombie, and it passed
+with the check removed - PowerShell reaps its own children, so the case cannot
+be constructed from this suite. It was deleted rather than left looking like
+coverage, and the guard it was written for is marked untested in the module.
+Removing an assertion is sometimes the honest move.
+
+**A fixed sleep encodes one implementation's startup time.** The cancel
+property waited three seconds and then cancelled, which is ample for bash and
+not always enough for PowerShell - two interpreter starts and a module import.
+On a loaded machine the cancel landed before a single line was captured, and
+the property reported *"the partial log does not survive a cancel"* about a run
+that had not produced one. It waits for the run to be demonstrably under way
+now. A specification may not assume how fast an implementation starts.
+
+**A BOM makes a file look non-executable to Git-Bash.** The exec bit there is
+inferred from a shebang at offset 0, and three invisible bytes move it - so
+`run.sh` refused a BOM'd step with *"step file is not executable"* and told a
+Windows operator to `chmod +x`, which cannot fix it. The BOM check moved ahead
+of the executable test: the BOM is the cause and every other symptom points
+somewhere unhelpful. Found because the twin comparison disagreed on Windows and
+nowhere else, and because the assertion printed the file's first eight bytes
+and its mode instead of just a number.
+
+**"It puts it back afterwards" is not "it changes nothing".** `--check` is what
+gets run where nobody is permitted to alter anything yet, and it wrote a probe
+file and deleted it - with a FIXED NAME, so a file already at that path was
+destroyed. The test missed it by deleting the directory first, which skipped the
+whole branch that runs when it exists. Snapshot the tree, not one path.
+
+**Git-Bash converts a path at the exec boundary and nowhere else.** An argument
+like `-LogPath /tmp/x` arrives at a native program already converted, so
+everything looked fine; a path EMBEDDED IN A SCRIPT gets no such treatment, and
+PowerShell read `/tmp/x` as `C:\tmp\x`. The step wrote its marker to a
+directory the suite never looked in, and property 5 reported *"exit 0, but the
+step never ran"* about a step that had run perfectly. `cygpath -w` where the
+path goes into a file rather than onto a command line.
+
+**A loop that refuses at the wrong gate has tested nothing.** The check that
+`HELIOGRAPH_ASSUME_PRIVILEGED` cannot OPEN the privileged gate ran an action
+with no `CONFIRM`, so gate 2 refused every iteration before gate 4 was reached.
+Every value "refused", the assertion passed, and a value that opened gate 4
+would have gone unnoticed. Found by an adversarial read on 2026-09-10. When a
+test asserts that gate N did something, the input has to reach gate N.
+
+**Two implementations of one rule need a test that compares them, not two
+tests.** `run.ps1` and `run.sh` were each tested and each passed, and three
+things still meant different things to the two of them - `CONFIRM=YES`,
+`# heliograph-mode: READ-ONLY`, and the step name `ENV` - because PowerShell
+compares case-insensitively everywhere bash does not. Two of those were security
+gates: a state-changing step ran on one and was refused by the other, from the
+same request. The guard that holds is running the SAME declaration through both
+and comparing the exit codes.
+
+**A corpus is only testing the rules it is the ONLY thing catching.** The
+redaction corpus was written case by case, each one realistic - a GitLab token
+in a clone URL, a Bearer token behind an `Authorization:` header - and every one
+of those is caught by a *different, broader* rule. Four rules could be deleted
+outright with the corpus still reporting a clean run. Found by deleting them,
+one at a time, which is now `test-redaction-corpus.sh` and runs every time. The
+mutation itself was wrong twice first: deleting the last `-e` line broke the
+line continuation, and `awk -v` ate a trailing backslash - and in both cases a
+`cap_redact` that no longer existed leaked nothing, which reads exactly like a
+rule the corpus caught. **A mutation test needs a liveness check or its passes
+are silence.**
+
+**An exit code is not evidence that anything ran.** The conformance suite's two
+gate properties were asserted by exit status alone, so a runner that returned 0
+without executing the step satisfied *"a declared step runs"*, and one that ran
+the step and THEN refused with 5 satisfied *"nothing runs as root"* - which is
+the whole defect wearing the right exit code. Both now write a marker. Three
+distinct strings also satisfied *"three distinct timestamps"*; the column is now
+checked for being a clock, and for being UTC, by capturing under `TZ` fourteen
+hours away.
+
+**A test double more permissive than the real thing is worse than none.** The
+relay stub was written with one token; the relay's scopes are asymmetric, so a
+station using the control credential would have passed here and been refused in
+an estate. There are two doubles of that relay in this repository - this one and
+the Go one the CLI tests use - which is two chances to drift, so the rules are
+now asserted against the stub behaviourally rather than assumed from having
+written it.
+
+**A re-run that goes green is a diagnosis nobody made.** The launchd assertion
+failed four times and was re-run clean four times, and the fourth failure - the
+first to print `launchctl print` - said in one line that no station had ever
+started on a Mac. An intermittent failure is a race between a real bug and a
+poll, not an absence of one. Make a test carry its own evidence BEFORE it fails
+again, because the evidence that settles it is usually the kind the next run
+destroys.
+
+**A process is not a service.** *"the loop is running as pid N"* was true
+throughout a crash loop, because launchd kept making new ones. Assert on what
+the thing was installed to DO - it got past preflight, it published a status -
+never on the existence of a pid.
+
+**A template nobody has validated is a template nobody knows parses.** The very
+first CI run of `terraform validate` over `station/bash/azure`, added on
+2026-09-09, failed on code that predated it: a SENSITIVE value cannot drive
+`for_each`, because a `for_each` key becomes part of a resource address and a
+secret may not go there. `var.gitToken` is sensitive, so
+`for_each = var.gitToken == "" ? [] : [1]` is sensitive too, and the Container
+Apps job had never parsed under the pinned terraform. It had been DEPLOYED -
+just with a newer terraform than CI pins, which is why nothing noticed. Unwrap
+only what is genuinely not secret: the EMPTINESS of a token, or the NAMES of a
+secret map, never the values.
+
+**Adversarial review finds what self-review does not.** Two codex passes on
+2026-09-08 found ten defects, five missed entirely - a quoting bypass of the
+env guard, `cap_push` returning 0 on failure, a committed test artefact that
+`bootstrap` would have planted into every station.
+
+**A test written for one defect finds another.** Writing the "a state write
+that failed must be reported" case made `_relay_lock` spin for ever, because it
+waited on any `mkdir` failure and an unwritable directory is one. Moving that
+check inside the retry loop then broke a working lock, because a holder
+releasing between the failed `mkdir` and the test looks exactly like an
+unwritable filesystem - 58 numbers out of 60, two takers refused for nothing.
+Ask "can I ever create this" once, up front; ask "does it exist" only in the
+loop.
+
+**A stale-lock heuristic that can fire on a live holder is not a lock.** The
+relay's sequence lock broke any lock directory untouched for a minute - and a
+holder's mtime does not change while it works, so the breaker deleted live
+locks and two processes went in at once. Four takers wanting fifteen numbers
+each got 33 distinct numbers out of 60. It fails exactly like having no lock:
+intermittently, silently, under load. Ask `kill -0` whether the recorded pid is
+alive, which is what station.sh has always done.
+
+**`go:embed` reads the working tree, and .gitignore does not stop it.**
+`terraform init` in the Azure templates drops 200MB of provider binaries per
+template, and `bootstrap.sh` has pruned `.terraform` since it was written. The Go
+planter did not - so a release built on any machine where somebody had run
+terraform would have carried those binaries inside the `heliograph` binary,
+permanently, in every download. CI never saw it because a CI runner starts
+clean. Found by running `terraform test` locally, which is the thing the
+templates needed and nothing had ever done.
+
+**One file format, two implementations, is six disagreements.** The
+`.station-env` rules were written in bash for `service.sh` and again in
+PowerShell for `service.ps1`, and an adversarial read found six ways they
+classified the same file differently - PowerShell regexes are case-insensitive
+by default, `Get-Content` eats a UTF-8 BOM that bash does not skip when
+sourcing, an empty file passed one and failed the other. A station that installs
+on Windows and is refused on Linux, from one file, is worse than either answer
+alone. `station-env.sh` is now the only implementation and both installers call
+it.
+
+**Ask the transport, do not keep a list of what it needs.** Scraping `cap_need`
+names out of a transport looked mechanical and was a floor: Azure Blob needs a
+SAS *or* a managed identity, which no `cap_need` line expresses, so a file with
+the two names it does declare passed the installer and was refused by
+`start.sh`. Running the transport's own `tp_init` - local by contract, no
+network - gets every case right and stays right when a transport changes.
+
+**Stripping a CR on read is not the same as stripping it on source.** The
+validator read `.station-env` with the CR removed and accepted a CRLF file;
+nothing strips it when a service SOURCES that file, so `SHARE_SCOPE` became
+`probe` plus a carriage return and the transport refused it after installation.
+The test asserting CRLF was accepted is what found it.
+
+**A `.dockerignore` is a file nobody re-reads, and it decides what ships.**
+`**/secrets/*` looked like prudence and was wrong: `station/bash/secrets/` is
+part of the payload, so the image quietly planted one file fewer than every
+other way of planting a station, and nothing would have noticed. The image's
+payload is now compared file-for-file against `bootstrap.sh`'s.
+
+**Sourcing an env file does not export anything.** `. file` with `KEY=value` in
+it sets a SHELL variable, and the next thing the LaunchAgent and the setsid
+fallback do is `exec bash start.sh` - a new process, which inherits environment
+variables and not shell ones. So the file was read and every value discarded,
+and a relay station started as a git one. systemd was unaffected, because
+EnvironmentFile exports for you: which is exactly how a defect ends up in two
+mechanisms out of three and looks like working code in the one that is tested.
+`set -a` around the source.
+
+**One file, two parsers, is a specification.** The same `.station-env` is read
+by systemd's EnvironmentFile and sourced by a shell, and an ordinary Azure SAS -
+`?sv=...&ss=...&sig=...` - is a value to one and three background jobs to the
+other. The file is validated at install time against the intersection of the two
+languages rather than hoped about.
+
+**A round trip finds what reading cannot.** The relay had four defects that
+every review had walked past, and all four surfaced within an hour of the first
+end-to-end run: the preflight proved its token by reading the station's own
+request queue, and a relay deletes on collection, so every `./start.sh` silently
+ate the waiting request; the loop and the runner collided on sequence numbers so
+`idle` was dropped as a replay; `ListLogs` returned an error, leaving the
+transport whose whole purpose is retrieving a log with no way to read one; and
+`log: <none>` appeared in every status for a step sent by path, on every
+transport, because the glob used the path rather than the label. None of them
+errored anywhere.
+
+**A reachability check is not a delivery check.** `tp_check` on the blob
+transport counted an HTTP 404 as success, on the argument that an absent request
+proves the account and the credential. A misspelt container, a wrong account and
+a read-only SAS all answer exactly like that, so all three cleared the preflight
+and failed on the first upload - an hour later, with nobody left to tell. Every
+`tp_check` now proves a WRITE, the cheapest way its store allows.
+
+**Checking one of a pair is checking neither.** The relay verified
+`RELAY_IDENTITY` was readable and never `RELAY_PEER`, so a station with no peer
+key started, then failed every verification and every seal. `tp_describe` turned
+the failed fingerprint into `<unreadable>` and printed it beside an `ok`.
+
+**A command substitution is a subshell, and a transport's `tp_init` sets
+variables the rest of the run needs.** `why="$(tp_init 2>&1)"` looked like the
+tidy way to fold a failure into the preflight table. It reported the transport
+as `ok` and then killed every git check with `BRANCH: unbound variable`, because
+`BRANCH=$b` had been set in the subshell and thrown away. Capture stderr through
+a file when the function has to run in this shell.
+
+**Read the skill before changing a default.** Pinning an estate to its branch
+looked right and would have broken every existing user, because SKILL.md tells
+you to work on `task/<slug>` and then send. `Scope` set means routing matters;
+`Branch` alone means follow the checkout.
