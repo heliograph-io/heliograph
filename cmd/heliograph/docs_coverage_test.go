@@ -438,28 +438,40 @@ func TestEveryStatusFieldIsDocumented(t *testing.T) {
 	}
 }
 
-// PLAN.md is the register: what has landed, what is next, and which defects are
-// known and unfixed. It is what survives a handover or a context compaction, so
-// it is worth a little machinery to stop it going quietly stale.
+// ROADMAP.md is the plan: what heliograph is for, where it stands, and the
+// epics for now, next and later. It replaced PLAN.md on 2026-09-30, when the
+// register had become a log of what landed; the log moved whole to
+// docs/history/2026-09-plan.md and PLAN.md became a one-line pointer.
 //
 // The check is deliberately narrow. Whether "next" is still the right order is
-// a judgement no test can make. Whether the register still agrees with the
-// filesystem about which transports exist is not a judgement at all.
+// a judgement no test can make. Whether the plan still agrees with the
+// filesystem about which transports exist is not a judgement at all, and
+// whether every open epic is listed is checked outside this repository, by a
+// tool that can ask GitHub.
 func TestThePlanIsPresentAndAgreesWithTheCode(t *testing.T) {
-	plan, err := os.ReadFile("../../PLAN.md")
+	plan, err := os.ReadFile("../../ROADMAP.md")
 	if err != nil {
-		t.Fatalf("PLAN.md is the register and it is not here: %v", err)
+		t.Fatalf("ROADMAP.md is the plan and it is not here: %v", err)
 	}
 	p := string(plan)
 
-	// An unreferenced register is one nobody opens.
+	// Old links to PLAN.md must still land somewhere that says where to go.
+	pointer, err := os.ReadFile("../../PLAN.md")
+	if err != nil {
+		t.Fatalf("PLAN.md is the pointer every old link resolves to, and it is gone: %v", err)
+	}
+	if !strings.Contains(string(pointer), "ROADMAP.md") {
+		t.Error("PLAN.md no longer points at ROADMAP.md, so an old link lands nowhere")
+	}
+
+	// An unreferenced plan is one nobody opens.
 	for _, f := range []string{"../../AGENTS.md", "../../README.md"} {
 		b, err := os.ReadFile(f)
 		if err != nil {
 			t.Fatalf("%s: %v", f, err)
 		}
-		if !strings.Contains(string(b), "PLAN.md") {
-			t.Errorf("%s does not point at PLAN.md, so nobody arriving would find it", filepath.Base(f))
+		if !strings.Contains(string(b), "ROADMAP.md") {
+			t.Errorf("%s does not point at ROADMAP.md, so nobody arriving would find it", filepath.Base(f))
 		}
 	}
 
@@ -468,7 +480,7 @@ func TestThePlanIsPresentAndAgreesWithTheCode(t *testing.T) {
 	// trusts about what works.
 	//
 	// PER LINE, NOT PER FILE. The first version asked whether "no station side"
-	// appeared anywhere in PLAN.md, which was true of all three transports while
+	// appeared anywhere in the register, which was true of all three transports while
 	// it was true of any of them - so writing share.sh made the register wrong
 	// about share AND made it impossible to record that bundle still has none.
 	// It caught the real drift on the day share.sh landed and then could not be
@@ -498,24 +510,39 @@ func TestThePlanIsPresentAndAgreesWithTheCode(t *testing.T) {
 			if strings.Contains(line, "no station side") {
 				claimed = true
 				if exists {
-					t.Errorf("station/bash/transports/%s.sh exists, and PLAN.md still says "+
+					t.Errorf("station/bash/transports/%s.sh exists, and ROADMAP.md still says "+
 						"%q has no station side:\n  %s", name, spelt, strings.TrimSpace(line))
 				}
 			}
 		}
 		if !exists && !claimed {
-			t.Errorf("there is no station/bash/transports/%s.sh, and no line of PLAN.md "+
-				"mentioning %q says so. The register would be promising a transport "+
+			t.Errorf("there is no station/bash/transports/%s.sh, and no line of ROADMAP.md "+
+				"mentioning %q says so. The plan would be promising a transport "+
 				"that has only one half", name, spelt)
 		}
 	}
 
-	// The sections that make it a register rather than a note.
-	for _, want := range []string{"## Where we are", "## Next, in order",
-		"## Known defects", "## Lessons"} {
+	// The sections that make it a plan rather than a note.
+	for _, want := range []string{"## What heliograph is for", "## Where we are",
+		"## Now, Next, Later", "### Now", "### Next", "### Later",
+		"## What we will not do", "## Open and commercial",
+		"## Claims and their status", "## Contributing"} {
 		if !strings.Contains(p, want) {
-			t.Errorf("PLAN.md has no %q section, so it has stopped being the register", want)
+			t.Errorf("ROADMAP.md has no %q section, so it has stopped being the plan", want)
 		}
+	}
+
+	// The lessons left PLAN.md for AGENTS.md, and the history for docs/history.
+	// Losing either would lose the part of the old register that still teaches.
+	agents, err := os.ReadFile("../../AGENTS.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(agents), "## Lessons this repository has already paid for") {
+		t.Error("AGENTS.md has lost the lessons this repository has already paid for")
+	}
+	if _, err := os.Stat("../../docs/history/2026-09-plan.md"); err != nil {
+		t.Errorf("the history PLAN.md points at is gone: %v", err)
 	}
 }
 

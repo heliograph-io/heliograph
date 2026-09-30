@@ -23,7 +23,7 @@ import (
 //
 // IT IS DELIBERATELY STRICT, and every strictness is one the real thing has. A
 // double more permissive than the real thing is worse than none: that lesson is
-// in PLAN.md and it was paid for by a relay stub with one token where the relay
+// in AGENTS.md and it was paid for by a relay stub with one token where the relay
 // has two asymmetric ones. So this one refuses a chunk at an offset it did not
 // expect, refuses a chunk whose digest does not match its bytes, refuses a body
 // whose whole digest does not match the manifest, and answers `unknown-run` for
@@ -662,7 +662,7 @@ func TestAFailedPushNamesTheLocalPathOfWhatItCouldNotSend(t *testing.T) {
 }
 
 // "It puts it back afterwards" is not "it changes nothing". Snapshot the tree,
-// not one path: that lesson is in PLAN.md, paid for by a preflight that wrote a
+// not one path: that lesson is in AGENTS.md, paid for by a preflight that wrote a
 // probe file with a fixed name and destroyed what was already there.
 func TestThePushLeavesTheSpoolExactlyAsItFoundIt(t *testing.T) {
 	dir := writeSpool(t, map[string]string{
