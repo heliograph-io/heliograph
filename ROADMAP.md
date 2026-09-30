@@ -22,9 +22,9 @@ heliograph logs --last --gaps               # every line time-stamped, and where
 curl https://relay.heliograph.io/health     # the relay we run, the commit it reports and its hash
 ```
 
-Both stations, bash and PowerShell, poll, run, deliver and publish, with every gate. The CLI drives a real station end to end in CI over git, a file share and the relay. The [quick start](https://docs.heliograph.io/quickstart) goes from nothing to a captured log in five steps.
+Both stations, bash and PowerShell, poll, run, deliver and publish, with every gate. The PowerShell station cannot yet make its own key, so enrolling one still needs the `heliograph-seal` binary it exists to avoid ([#197](https://github.com/heliograph-io/heliograph/issues/197)). The CLI drives a real station end to end in CI over git, a file share and the relay. The [quick start](https://docs.heliograph.io/quickstart) goes from nothing to a captured log in five steps.
 
-Known defects are issues labelled [`type: bug`](https://github.com/heliograph-io/heliograph/issues?q=is%3Aissue+is%3Aopen+label%3A%22type%3A+bug%22). The worst open one is [#203](https://github.com/heliograph-io/heliograph/issues/203): both stations push a log to the branch's configured upstream rather than to `origin`.
+Known defects are issues labelled [`type: bug`](https://github.com/heliograph-io/heliograph/issues?q=is%3Aissue+is%3Aopen+label%3A%22type%3A+bug%22). Two are `P1: now`: [#203](https://github.com/heliograph-io/heliograph/issues/203), where both stations push a log to the branch's configured upstream rather than to `origin`, and [#151](https://github.com/heliograph-io/heliograph/issues/151), where the shipped manifests still send users to the old documentation host.
 
 ## Now, Next, Later
 
@@ -70,7 +70,7 @@ Every commit published under MIT stays available under MIT: `b689f9c` and earlie
 | CLI release binaries rebuild byte for byte | **True** | `packaging/reproduce.sh` is the build the release uses, and the `reproducible` job in `.github/workflows/validate.yml` builds twice from two directories and fails on a difference |
 | The relay is signed | **Not true.** It has tags up to `v0.3.0` and no GitHub release, so nothing carries a signature | [relay README](https://github.com/heliograph-io/heliograph-relay#provenance): "Nothing here is signed yet" |
 | The relay rebuilds byte for byte | **True**, for the Go binary and the Worker | The relay's CI builds each twice on every pull request. `edge/reproduce.sh` rebuilds the Worker bundle from a tag |
-| The relay we run is the published source | **Not established.** One deployed hash has been compared to a build, by hand | On 2026-09-29 `relay.heliograph.io/health` reported commit `adc17a8` (`v0.3.0`) and hash `0b2d5e01ab8202978af0a0bcde40aca53a1b6d326e68bc68bf98a83dea1f65a6`, and a fresh rebuild of `v0.3.0` with `edge/reproduce.sh` gave the same hash. A Worker cannot read its own code, so that hash is the number the deploy workflow computed and reported. It matches a build; it does not prove what is serving |
+| The relay we run is the published source | **Not established.** The hash the deployment reports has been compared to a build, by hand | On 2026-09-29 `relay.heliograph.io/health` reported commit `adc17a8` (`v0.3.0`) and hash `0b2d5e01ab8202978af0a0bcde40aca53a1b6d326e68bc68bf98a83dea1f65a6`, and a fresh rebuild of `v0.3.0` with `edge/reproduce.sh` gave the same hash. A Worker cannot read its own code, so that hash is the number the deploy workflow computed and reported ([relay README](https://github.com/heliograph-io/heliograph-relay#provenance)). It matches a build; it does not prove what is serving |
 
 ## Contributing
 
