@@ -28,10 +28,21 @@ fetch them and it costs half a day, not because they will win citations.
 
 ## Analytics, and what a search result sees
 
-**This site measures nothing.** The GA4 tag, the Consent Mode gate and the
-consent banner were removed when it moved to `docs.heliograph.io` on
-2026-09-16, and the reasoning is in `cmd/heliograph-site/main.go` beside the
-code that used to emit them.
+**The generator measures nothing, and `docs.heliograph.io` now does.** A site
+built from this repository makes no third-party request and sets no cookie. The
+GA4 tag, the Consent Mode gate and the consent banner were removed when the site
+moved to `docs.heliograph.io` on 2026-09-16, and the reasoning is in
+`cmd/heliograph-site/main.go` beside the code that used to emit them.
+
+Since 2026-09-30 the deployment at `docs.heliograph.io` counts visits with
+Google Analytics, on heliograph.io's own property, with a notice and an opt-out.
+The notice, the tag and the site's Content-Security-Policy are added as each
+page is served, by the Worker that serves it, and not by anything in this
+repository. What is collected and how to opt out is on
+[heliograph.io/privacy](https://heliograph.io/privacy#analytics).
+
+> This paragraph said "**This site measures nothing.**" until 2026-09-30. It
+> stayed true of the generator and stopped being true of the deployment.
 
 All three were correct while the site was `heliograph.dbhq.uk`: the measurement
 id was the dbhq.uk stream's, on Google's one-stream-per-site-including-subdomains
@@ -40,9 +51,10 @@ covered the hostname the reader was on. `heliograph.io` is a different
 registrable domain, so all three stopped being true in the same instant - what
 would have been live is one domain's tag disclosed by another domain's policy.
 
-Removed rather than repointed: a measurement id nobody has created cannot be
-written here, and a banner cannot link a policy that does not exist. The cost is
-accepted and real - the documentation has no usage signal at all.
+Removed rather than repointed: a measurement id nobody had created could not be
+written here, and a banner could not link a policy that did not exist. Until
+2026-09-30 the documentation had no usage signal at all. The property and the
+policy exist now, and the deployment carries them rather than the generator.
 
 Titles and descriptions are hand-written in `cmd/heliograph-site/main.go`
 (`titles`, `descriptions`), and a test holds every description to 70 to 160
