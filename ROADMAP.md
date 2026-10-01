@@ -32,6 +32,7 @@ One line per epic. Each epic's `Done when` list is the definition of finished, a
 
 ### Now
 
+- [A stranger sees the whole loop work in their first minute, on one machine](https://github.com/heliograph-io/heliograph/issues/215) - `heliograph try` runs a step and brings the log back with nothing to set up, and the README shows that before it explains anything.
 - [A captured log comes back whole, or the station and the tools say exactly what is missing](https://github.com/heliograph-io/heliograph/issues/209) - what ran and what it printed reaches the control side, and where it did not, every surface reports what was observed rather than a guess.
 
 ### Next
