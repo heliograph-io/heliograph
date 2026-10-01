@@ -35,11 +35,18 @@ import (
 //
 // It spoke only 2024-11-05 until 2026-09-25, and that version has no tool
 // annotations, so a client could not tell a read from a write and had to ask
-// before every call. Nothing this server does differs between the three: it
-// sends no batches (dropped in 2025-06-18) and asks the client for nothing.
-// So it answers with the version the client asked for when it knows it, and
-// otherwise with its newest, which is what the specification says to do.
-var protocolVersions = []string{"2025-06-18", "2025-03-26", "2024-11-05"}
+// before every call. Nothing this server does differs between the four: it
+// sends no batches (dropped in 2025-06-18), asks the client for nothing, and
+// already returns a tool's own failure as a result with isError, which
+// 2025-11-25 made the rule for bad arguments. So it answers with the version
+// the client asked for when it knows it, and otherwise with its newest, which
+// is what the specification says to do.
+//
+// 2026-07-28 is deliberately not here. It removes initialize itself, requires
+// server/discover and a resultType on every result, and that is a different
+// server rather than a version string. A client that speaks it falls back to
+// initialize on stdio and is answered with 2025-11-25.
+var protocolVersions = []string{"2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"}
 
 // negotiate picks the version to answer an initialize with.
 func negotiate(asked string) string {

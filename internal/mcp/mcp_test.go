@@ -311,10 +311,12 @@ func TestArgumentHelpers(t *testing.T) {
 // annotations, so no client could tell a read from a write.
 func TestInitializeNegotiatesTheProtocolVersion(t *testing.T) {
 	for asked, want := range map[string]string{
+		"2025-11-25": "2025-11-25",
 		"2025-06-18": "2025-06-18",
 		"2025-03-26": "2025-03-26",
 		"2024-11-05": "2024-11-05",
-		"2099-01-01": "2025-06-18",
+		"2026-07-28": "2025-11-25",
+		"2099-01-01": "2025-11-25",
 	} {
 		got := exchange(t, []Tool{echoTool()},
 			`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"`+asked+`"}}`)

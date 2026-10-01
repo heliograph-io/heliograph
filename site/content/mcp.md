@@ -69,10 +69,12 @@ without asking each time. `heliograph_send`, `heliograph_cancel` and
 `heliograph_stop` are marked as changing things, and a client that asks before
 a write asks before those.
 
-The server speaks MCP `2025-06-18`, `2025-03-26` and `2024-11-05`, and answers
-with the version the client asks for. `heliograph_wait` sends progress
-notifications while it waits, when the client asks for them with a progress
-token.
+The server speaks MCP `2025-11-25`, `2025-06-18`, `2025-03-26` and
+`2024-11-05`, and answers with the version the client asks for. It does not
+speak `2026-07-28`, which drops `initialize` altogether. A client that speaks
+it and falls back to `initialize` is answered with `2025-11-25`.
+`heliograph_wait` sends progress notifications while it waits, when the client
+asks for them with a progress token.
 
 ## Why tools and not just the skill
 
