@@ -1,4 +1,4 @@
-name: validate
+name: Validate
 
 on:
   push:
@@ -9,6 +9,24 @@ permissions:
   contents: read
 
 jobs:
+  # THE ESTATE FLOOR, defined once in dbhq-uk/.github (dbhq-uk/.github#4), the
+  # same call every DBHQ skill repository makes: SKILL.md frontmatter parses
+  # as YAML and names its directory, plugin.json parses and carries no
+  # version, skill paths are braced, every shell script passes bash -n and
+  # shellcheck, ruff E9,F over the Python, and no em or en dashes. The ruff
+  # step is the one this repository did not have: it found two unused imports
+  # in the Azure Function. Pinned by SHA; Dependabot moves it.
+  #
+  # It replaced six steps this repository ran itself: the plugin.json version
+  # check in the go job, the em dash check in the style job, and the manifest,
+  # bash -n, shellcheck and frontmatter steps in station.yml. The dash check
+  # reads Go as well as markdown, as the style job's did, and now refuses en
+  # dashes too.
+  floor:
+    uses: dbhq-uk/.github/.github/workflows/skill-floor.yml@af131df509f44eb9abfe8b37ad6299c11f496c5f # skill-floor-v1.0.0
+    with:
+      dash-files: "*.md *.go"
+
   go:
     name: Go builds, vets and tests
     runs-on: ubuntu-latest
@@ -20,13 +38,6 @@ jobs:
           # job failed on PR #43 on exactly that, one run after the site job
           # had been given full history.
           fetch-depth: 0
-
-      # No `version` in plugin.json, on purpose (24 Sep 2026). Claude Code only
-      # updates an installed plugin when this field changes, it was never bumped,
-      # and marketplace installs sat on old code for weeks. With no version the
-      # commit is the version, so every merge to main reaches users.
-      - name: plugin.json carries no version
-        run: jq -e 'has("version") | not' .claude-plugin/plugin.json > /dev/null
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
@@ -393,14 +404,6 @@ jobs:
         with:
           terraform_version: "1.9.8"
           terraform_wrapper: false
-
-      - name: no em dashes
-        run: |
-          if grep -rn "$(printf '\xe2\x80\x94')" --include='*.md' --include='*.go' . ; then
-            echo "::error::Em dash found. House style is a plain hyphen."
-            exit 1
-          fi
-          echo "No em dashes."
 
       - name: nothing secret is in this public repository
         # The whole argument for committing account ids, zone ids and the

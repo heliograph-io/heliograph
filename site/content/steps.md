@@ -95,11 +95,11 @@ Source them; they are there so twelve steps do not each write their own.
 
 | | |
 |---|---|
-| `lib/probe.sh` | probe helpers and `probe_summary` - the tally at the end of a log |
-| `lib/remote.sh` | reach another host over SSH, including `rt_ps` for PowerShell on Windows |
-| `lib/ansible.sh` | run a playbook through the capture, with the right flags |
-| `lib/terraform.sh` | `plan` and `apply` with output that survives a log |
-| `lib/tfguard.sh` | refuse a terraform apply whose plan does not match what was reviewed |
+| `lib/probe.sh` | `sec`, `probe`, `probe_opt`, `have` and `probe_summary` - the tally at the end of a log. Sourced by every step |
+| `lib/remote.sh` | `rt_dns`, `rt_ping`, `rt_tcp` (pure bash, no `nc`), `rt_matrix` (host by port), `rt_ssh` (BatchMode, time-bounded), `rt_ps` and `rt_win_info` (PowerShell on a Windows host over SSH) |
+| `lib/terraform.sh` | `tf_init`, `tf_validate`, `tf_plan`, `tf_show`, `tf_state_list`, `tf_output` and friends. Read-only on purpose: no apply, no destroy, no `state rm` |
+| `lib/tfguard.sh` | `tf_lock_guard` puts back a tracked `.terraform.lock.hcl` that something moved, and `tg` runs terragrunt, retrying only when the subcommand name was rejected |
+| `lib/ansible.sh` | `an_ping`, `an_win_ping`, `an_facts`, `an_play`, `an_check`, `an_list`, `an_inventory` |
 
 `probe_summary` is worth using in every step. A log that ends with `9 passed, 2
 failed` is one somebody can act on from the first screen.
