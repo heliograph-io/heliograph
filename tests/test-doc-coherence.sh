@@ -400,6 +400,18 @@ if grep -qi 'MCP tools are loaded, use them' "$SKILL"; then
 else
   t_no "SKILL.md tells an agent to prefer loaded MCP tools over the CLI"
 fi
+# SKILL.md said "There is no watch tool: poll heliograph_status" until
+# heliograph_wait existed (#160). Naming the new tool elsewhere in the same
+# paragraph would satisfy the loop above while that sentence still sent an
+# agent round a poll loop, one tool call per poll. So the claim goes when the
+# tool arrives.
+if printf '%s\n' "$mcp_tools" | grep -qx heliograph_wait; then
+  if grep -qi 'no watch tool' "$SKILL"; then
+    t_no "SKILL.md says there is no watch tool, and heliograph_wait is one"
+  else
+    t_ok "SKILL.md does not say there is no watch tool"
+  fi
+fi
 
 # --- the term that was retired -----------------------------------------------
 # `agent` retired as a heliograph term for the far-side loop. That loop is a
