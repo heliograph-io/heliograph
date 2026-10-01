@@ -18,54 +18,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Validate plugin manifest is valid JSON
-        run: jq empty .claude-plugin/plugin.json
-
-      - name: Check shell scripts parse
-        # Root installers included: a syntax error there breaks every install.
-        # tests/ included too. The tests job runs those scripts, so a syntax
-        # error there does get caught - but as a failing test run in a different
-        # job, which reads as "the station is broken" rather than "this file
-        # does not parse". Same corpus as AGENTS.md's local command.
-        run: |
-          fail=0
-          while IFS= read -r s; do
-            bash -n "$s" || { echo "Syntax error: $s"; fail=1; }
-          done < <({ find . -maxdepth 1 -name '*.sh'; find skills station tests -name '*.sh'; })
-          exit $fail
-
-      - name: Shellcheck
-        run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
-          shellcheck -S warning $(find . -name '*.sh' -not -path './.git/*' -not -path './site/*')
-
-      - name: Check SKILL.md frontmatter
-        run: |
-          python3 - <<'PY'
-          import sys, pathlib, re
-          ok = True
-          for skill in sorted(pathlib.Path("skills").glob("*/SKILL.md")):
-              text = skill.read_text(encoding="utf-8")
-              m = re.match(r"^---\n(.*?)\n---", text, re.S)
-              if not m:
-                  print(f"{skill}: missing YAML frontmatter"); ok = False; continue
-              fm = m.group(1)
-              name = re.search(r"^name:\s*(.+)$", fm, re.M)
-              desc = re.search(r"^description:\s*(.+)$", fm, re.M)
-              if not name:
-                  print(f"{skill}: missing 'name'"); ok = False
-              else:
-                  name = name.group(1).strip()
-                  if name != skill.parent.name:
-                      print(f"{skill}: name '{name}' != directory '{skill.parent.name}'"); ok = False
-                  if not re.fullmatch(r"[a-z0-9-]{1,64}", name):
-                      print(f"{skill}: name must be lowercase alphanumeric/hyphen, <=64 chars"); ok = False
-              if not desc:
-                  print(f"{skill}: missing 'description'"); ok = False
-              elif len(desc.group(1).strip()) > 1024:
-                  print(f"{skill}: description exceeds 1024 chars"); ok = False
-          sys.exit(0 if ok else 1)
-          PY
+      # The manifest, bash -n, shellcheck and SKILL.md frontmatter checks that
+      # stood here moved to the shared skill floor, which validate.yml calls.
+      # The floor reads every tracked *.sh, a superset of the corpus these
+      # steps read, and parses the frontmatter as YAML rather than by regex.
 
       # The whole install story rests on ${CLAUDE_SKILL_DIR} being substituted
       # where it is used at all. A hardcoded ~/.claude/skills path works on the
