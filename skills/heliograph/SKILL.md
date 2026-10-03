@@ -1,6 +1,6 @@
 ---
 name: heliograph
-description: Debug and change a machine you cannot log into, through an operator who cannot debug it, by driving the heliograph CLI - git as the transport in both directions. Plants the station, configures the estate, publishes steps, and reads the pushed logs. Trigger on phrases like "heliograph", "I can't get on that box", "no access to that environment", "the only person who can reach it is X", "air-gapped", "can you give me something to run on that box", "they keep pasting output at me", "run it on the control node", "capture the log and push it back". Not for machines you can SSH into yourself.
+description: Debug and change a machine you cannot log into, through an operator who cannot debug it, by driving the heliograph CLI - git as the transport in both directions. Plants the station, configures the estate, publishes steps, and reads the pushed logs. Use when the user cannot reach a machine themselves (no access, air-gapped, or only an operator can get on it), needs something an operator can run there, or is stuck relaying pasted output, and when the user says "heliograph". Not for machines you can SSH into yourself.
 ---
 
 # heliograph
