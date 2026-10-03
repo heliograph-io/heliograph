@@ -20,8 +20,10 @@ cp steps/_template.sh steps/cluster-state.sh && chmod +x steps/cluster-state.sh
 #      cluster  is the cluster formed, and do both nodes agree?   (~1 min)
 ```
 
-Both registrations, every time. `--list` prints that comment block verbatim, so a
-step missing from it is invisible to the operator.
+A step needs no registration: `heliograph send steps/cluster-state.sh` sends it by
+path. Register it only to give it a short name, and then in both places above.
+`--list` prints that comment block verbatim, so a registered step missing from it
+is invisible to the operator.
 
 ## The rules
 
