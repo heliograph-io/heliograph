@@ -23,7 +23,7 @@ jobs:
   # reads Go as well as markdown, as the style job's did, and now refuses en
   # dashes too.
   floor:
-    uses: dbhq-uk/.github/.github/workflows/skill-floor.yml@af131df509f44eb9abfe8b37ad6299c11f496c5f # skill-floor-v1.0.0
+    uses: dbhq-uk/.github/.github/workflows/skill-floor.yml@20c4c766c7e549e2b0ef9833f56aee49901c8d1c # skill-floor-v1.0.0
     with:
       dash-files: "*.md *.go"
 
