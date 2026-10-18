@@ -311,6 +311,67 @@ _relay_record_seen() {  # _relay_record_seen <seq>
 
 _relay_url() { printf '%s/v1/%s/%s/%s' "$RELAY_BASE" "$RELAY_ESTATE" "$RELAY_STATION" "$1"; }
 
+# The preflight, which exists for one line: THIS STATION'S OWN FINGERPRINT.
+#
+# The PowerShell station has printed both fingerprints since it was written
+# (`transports/relay.psm1:539-547`) and calls it "the line that saves a round
+# trip". This one printed only the peer's, through tp_describe, so an operator
+# standing at a bash station had nothing of their own to read out and no way to
+# get it except `./heliograph-seal fingerprint --identity <file>` - which they
+# have to be told about, by somebody who is not there.
+#
+# That matters because of what the value is for. Enrolment's residual risk is
+# closed by two people comparing twelve characters over a channel they already
+# trust, and heliograph-io/heliograph-cloud#102 found the console half of it
+# asking for a value the operator had no way to produce on demand. A ceremony
+# whose input is hard to obtain is a ceremony people skip, and nothing detects
+# that they skipped it.
+#
+# It does what the fallback did as well, because declaring tp_preflight replaces
+# tp_check in start.sh rather than adding to it (`start.sh:288-305`).
+#
+# NOTHING HERE ASSUMES tp_init RAN. start.sh calls this after a FAILED tp_init
+# on purpose, so that one trip names every blocker, which is why every variable
+# is read with a default and the whole thing returns 0: a non-zero return makes
+# start.sh add a line about a defect in this file, on top of the FAIL that was
+# already reported.
+tp_preflight() {
+  local seal="${RELAY_SEAL:-$REPO_ROOT/heliograph-seal}" mine theirs
+
+  if [ ! -x "$seal" ]; then
+    report FAIL identity "heliograph-seal is not at $seal, so this station can neither compute its own fingerprint nor verify a request"
+    return 0
+  fi
+
+  mine="$("$seal" fingerprint --identity "${RELAY_IDENTITY:-}" 2>/dev/null)" || mine=""
+  theirs="$("$seal" fingerprint --peer "${RELAY_PEER:-}" 2>/dev/null)" || theirs=""
+
+  if [ -n "$mine" ]; then
+    report ok identity "$mine  <- read this to the control side"
+  else
+    report FAIL identity "this station's own key at ${RELAY_IDENTITY:-<unset>} will not parse. It is made here, with 'heliograph-seal keygen --out <file>'"
+  fi
+
+  # A truncated or wrong peer key is readable and fails every verification
+  # afterwards, which presents as a station that polls happily and silently
+  # drops every request. `fingerprint` parses it and is the cheapest thing that
+  # does.
+  if [ -n "$theirs" ]; then
+    report ok peer "$theirs  <- and check this against theirs"
+  else
+    report FAIL peer "the control side's public identity at ${RELAY_PEER:-<unset>} will not parse. Every request would fail verification and every log would fail to seal"
+  fi
+
+  # Both fingerprints are printed BEFORE the network is touched, so an operator
+  # with no route out still leaves with the value they were asked for.
+  if tp_check; then
+    report ok "relay reach" "the channel answered and the credential was accepted"
+  else
+    report FAIL "relay reach" "the relay could not be reached, or refused this credential - see the line(s) above. The station would capture logs it could not deliver. 'grep cap_need transports/relay.sh' lists every variable it requires"
+  fi
+  return 0
+}
+
 tp_check() {
   local code
   # THE KEYS FIRST, before any network. Readable is not the same as usable: a
