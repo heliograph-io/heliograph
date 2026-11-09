@@ -371,7 +371,7 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
           dotnet-version: '8.0'
 
@@ -996,7 +996,7 @@ jobs:
       # "validated" to "proven" on the hosts page: a kind cluster, the
       # real manifest, and a station that clones a repo, runs a step and
       # pushes the log back.
-      - uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1
+      - uses: helm/kind-action@ea822c7bf1874f08e5a491df991c228edffc3376 # v1.15.2
         with:
           cluster_name: heliograph-ci
           wait: 180s
