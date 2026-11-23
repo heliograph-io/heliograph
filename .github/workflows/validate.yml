@@ -23,7 +23,7 @@ jobs:
   # reads Go as well as markdown, as the style job's did, and now refuses en
   # dashes too.
   floor:
-    uses: dbhq-uk/.github/.github/workflows/skill-floor.yml@af131df509f44eb9abfe8b37ad6299c11f496c5f # skill-floor-v1.0.0
+    uses: dbhq-uk/.github/.github/workflows/skill-floor.yml@cce52cdffb1a7ce20b5bc5d033ba9e38eaa760ef # skill-floor-v1.0.0
     with:
       dash-files: "*.md *.go"
 
@@ -39,7 +39,7 @@ jobs:
           # had been given full history.
           fetch-depth: 0
 
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version: '1.27.1'
 
@@ -111,7 +111,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version: '1.27.1'
 
@@ -221,7 +221,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version: '1.27.1'
 
@@ -362,7 +362,7 @@ jobs:
           # A shallow clone would date every page today, so the build refuses
           # one; this is the remedy it names.
           fetch-depth: 0
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version: '1.27.1'
       - name: build
