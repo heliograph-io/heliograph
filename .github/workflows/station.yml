@@ -220,7 +220,7 @@ jobs:
       # stub relay. Without a toolchain the driver skips the relay - correct on
       # a machine that has no Go, and exactly the wrong thing to let pass here.
       # Pinned to go.mod so the seal under test is built the way it ships.
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: go.mod
 
@@ -367,11 +367,11 @@ jobs:
       # Go, for the CONTROL side of the relay harness only. The station side
       # is the thing under test and has no binary; heliograph-seal is what
       # makes the keys and reads the delivery back.
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: go.mod
 
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
         with:
           dotnet-version: '8.0'
 
@@ -996,7 +996,7 @@ jobs:
       # "validated" to "proven" on the hosts page: a kind cluster, the
       # real manifest, and a station that clones a repo, runs a step and
       # pushes the log back.
-      - uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1
+      - uses: helm/kind-action@ea822c7bf1874f08e5a491df991c228edffc3376 # v1.15.2
         with:
           cluster_name: heliograph-ci
           wait: 180s
